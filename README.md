@@ -19,28 +19,41 @@ The `main.go` resulting binary loads all the cni plugin configurations from
 Running the benchmarks is just done with go.
 You will need to use `sudo` since it requires creating network namespaces.
 
+**Setup**
+
+Before testing the cilium and calico plugins you will want to run:
+
+```
+$ make run-calico run-cilium
+```
+
+**Running the benchmarks**
+
 ```console
 $ sudo go test -bench=.
 goos: linux
 goarch: amd64
 pkg: github.com/jessfraz/cni-benchmarks
-BenchmarkCreateNetworkBridge-8                 2        1336957823 ns/op
-BenchmarkCreateNetworkIPvlan-8                 1        1247153073 ns/op
-BenchmarkCreateNetworkMacvlan-8                2        1166644852 ns/op
-BenchmarkCreateNetworkPTP-8                    1        1205845369 ns/op
+BenchmarkCreateNetworkBridge-8                 1        1103701882 ns/op
+BenchmarkCreateNetworkCalico-8                 1        11406779278 ns/op
+BenchmarkCreateNetworkCilium-8                 1        2974889818 ns/op
+BenchmarkCreateNetworkIPvlan-8                 2        1245111887 ns/op
+BenchmarkCreateNetworkMacvlan-8                1        1333958217 ns/op
+BenchmarkCreateNetworkPTP-8                    1        1262308289 ns/op
 PASS
-ok      github.com/jessfraz/cni-benchmarks      8.986s
+ok      github.com/jessfraz/cni-benchmarks      21.221s
 
 $ sudo go test -bench=. -benchtime=20s
 goos: linux
-goarch: amd64
+arch: amd64
 pkg: github.com/jessfraz/cni-benchmarks
-BenchmarkCreateNetworkBridge-8                30        1349024418 ns/op
-BenchmarkCreateNetworkIPvlan-8                30        1089954577 ns/op
-BenchmarkCreateNetworkMacvlan-8               30        1132896757 ns/op
-BenchmarkCreateNetworkPTP-8                   20        1164912717 ns/op
+BenchmarkCreateNetworkBridge-8                30        1574208392  ns/op
+BenchmarkCreateNetworkCalico-8                 2        11603167194 ns/op
+BenchmarkCreateNetworkCilium-8                10        2026048715  ns/op
+BenchmarkCreateNetworkIPvlan-8                50        1189171868  ns/op
+BenchmarkCreateNetworkMacvlan-8               20        1176936944  ns/op
+BenchmarkCreateNetworkPTP-8                   20        1315428103  ns/op
 PASS
-ok      github.com/jessfraz/cni-benchmarks      134.639s
 ```
 
 The `main.go` program just runs all the plugins.
