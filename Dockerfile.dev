@@ -31,10 +31,17 @@ RUN CGO_ENABLED=0 go build -v -i -o /usr/bin/calico \
 RUN CGO_ENABLED=0 go build -v -i -o /usr/bin/calico-ipam \
 	-ldflags "-s -w" ipam/calico-ipam.go
 
+FROM gobuilder AS ciliumbuilder
+ENV CNI_VERSION master
+RUN git clone --branch "${CNI_VERSION}" --depth 1 https://github.com/cilium/cilium.git /go/src/github.com/cilium/cilium
+WORKDIR /go/src/github.com/cilium/cilium/plugins/cilium-cni
+RUN make
+
 FROM alpine:latest
 RUN	apk add --no-cache \
 	bash
 COPY --from=cnibuilder /go/src/github.com/containernetworking/plugins/bin/ /cni/bin/
 COPY --from=calicobuilder /usr/bin/calico /cni/bin/
 COPY --from=calicobuilder /usr/bin/calico-ipam /cni/bin/
-ENTRYPOINT [ "bash" ]
+COPY --from=ciliumbuilder /go/src/github.com/cilium/cilium/plugins/cilium-cni/cilium-cni /cni/bin/
+WORKDIR /cni/bin

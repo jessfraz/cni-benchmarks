@@ -137,8 +137,13 @@ AUTHORS:
 	@echo "$(shell git log --format='\n%aN <%aE>' | LC_ALL=C.UTF-8 sort -uf)" >> $@
 
 DOCKER_DEV_IMAGE=r.j3ss.co/cni-benchmarks-dev
-update-binaries: ## Run the dev dockerfile which builds all the cni binaries for testing.
+.PHONY: build-dev-image
+build-dev-image:
 	@docker build --rm --force-rm -t $(DOCKER_DEV_IMAGE) -f Dockerfile.dev .
+
+.PHONY: update-binaries
+update-binaries: build-dev-image ## Run the dev dockerfile which builds all the cni binaries for testing.
+	-$(shell docker run --rm --disable-content-trust=true $(DOCKER_DEV_IMAGE) bash -c 'tar -c *' | tar -xvC $(CURDIR)/bin/ > /dev/null)
 
 .PHONY: clean
 clean: ## Cleanup any build binaries or packages
