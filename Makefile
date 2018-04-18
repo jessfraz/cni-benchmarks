@@ -223,14 +223,15 @@ run-weave: stop-weave ## Run weave in a container for testing weave against.
 		weaveworks/weaveexec launch
 
 .PHONY: stop-weave
-stop-weave: # Stops the weave container.
-	docker run --rm \
+stop-weave: # Stops the weave containers.
+	@-docker run --rm \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v $(shell which docker):/usr/bin/docker:ro \
 		-v /tmp/weave:/weavedb \
 		--privileged \
 		--net host \
 		weaveworks/weaveexec stop
+	@-docker rm -f weave weavedb weavevolumes-2.3.0
 
 .PHONY: clean
 clean: stop-containers ## Cleanup any build binaries or packages
