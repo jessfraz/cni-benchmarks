@@ -96,7 +96,7 @@ func main() {
 	}
 
 	// Get a list of the links.
-	links, err := netlink.LinkList
+	links, err := netlink.LinkList()
 	if err != nil {
 		logrus.Fatalf("getting list of ip links failed: %v", err)
 	}
