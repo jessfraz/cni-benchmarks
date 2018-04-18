@@ -18,7 +18,7 @@ func BenchmarkCreateNetworkBridge(b *testing.B) {
 
 	// run the Fib function b.N times
 	for n := 0; n < b.N; n++ {
-		if err := a.createNetwork("bridge"); err != nil {
+		if err := a.createNetwork("bridge", false); err != nil {
 			b.Fatalf("[%d] %v", n, err)
 		}
 	}

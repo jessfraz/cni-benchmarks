@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -12,14 +13,50 @@ import (
 	"syscall"
 
 	cni "github.com/containerd/go-cni"
+	"github.com/jessfraz/cni-benchmarks/version"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
 
+const (
+	// BANNER is what is printed for help/info output
+	BANNER = `cni-benchmarks
+
+ version: %s
+
+`
+)
+
 var (
 	cniBinDir = filepath.Join(os.Getenv("GOPATH"), "src/github.com/containernetworking/plugins/bin")
+
+	debug bool
+	vrsn  bool
 )
+
+func init() {
+	flag.BoolVar(&vrsn, "version", false, "print version and exit")
+	flag.BoolVar(&vrsn, "v", false, "print version and exit (shorthand)")
+	flag.BoolVar(&debug, "d", false, "run in debug mode")
+
+	flag.Usage = func() {
+		fmt.Fprint(os.Stderr, fmt.Sprintf(BANNER, version.VERSION))
+		flag.PrintDefaults()
+	}
+
+	flag.Parse()
+
+	if vrsn {
+		fmt.Printf("cni-benchmarks version %s, build %s", version.VERSION, version.GITCOMMIT)
+		os.Exit(0)
+	}
+
+	// set log level
+	if debug {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
+}
 
 func main() {
 	// Lock the OS Thread so we don't accidentally switch namespaces.
@@ -57,7 +94,7 @@ func main() {
 	for _, plugin := range plugins {
 		logrus.WithFields(logrus.Fields{"plugin": plugin}).Info("creating new netns process")
 
-		if err := b.createNetwork(plugin); err != nil {
+		if err := b.createNetwork(plugin, true); err != nil {
 			logrus.WithFields(logrus.Fields{"plugin": plugin}).Error(err)
 		}
 	}
@@ -71,7 +108,6 @@ type benchmarkCNI struct {
 
 func newCNIBenchmark() (*benchmarkCNI, error) {
 	// Save the current network namespace.
-	logrus.Infof("Getting current netns")
 	originalNS, err := netns.Get()
 	if err != nil {
 		return nil, fmt.Errorf("getting current netns failed: %v", err)
@@ -84,7 +120,7 @@ func newCNIBenchmark() (*benchmarkCNI, error) {
 	}
 	pluginConfDir := filepath.Join(wd, "net.d")
 	pluginDirs := []string{cniBinDir, cni.DefaultCNIDir}
-	logrus.Infof("Initializing new CNI library instance with configuration directory %s and plugin directories %s", pluginConfDir, strings.Join(pluginDirs, ", "))
+	logrus.Debugf("Initializing new CNI library instance with configuration directory %s and plugin directories %s", pluginConfDir, strings.Join(pluginDirs, ", "))
 	libcni, err := cni.New(
 		cni.WithMinNetworkCount(2),
 		cni.WithPluginConfDir(pluginConfDir),
@@ -101,7 +137,7 @@ func newCNIBenchmark() (*benchmarkCNI, error) {
 	}, nil
 }
 
-func (b benchmarkCNI) createNetwork(plugin string) error {
+func (b benchmarkCNI) createNetwork(plugin string, doLog bool) error {
 	// Switch back to the original netns.
 	defer netns.Set(b.originalNS)
 
@@ -114,7 +150,9 @@ func (b benchmarkCNI) createNetwork(plugin string) error {
 	defer cmd.Process.Kill()
 	pid := cmd.Process.Pid
 
-	logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("netns process has PID %d", pid)
+	if doLog {
+		logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("netns process has PID %d", pid)
+	}
 
 	// Load the CNI configuration.
 	if err := b.libcni.Load(
@@ -135,9 +173,11 @@ func (b benchmarkCNI) createNetwork(plugin string) error {
 	// Get the IP of the default interface.
 	defaultInterface := cni.DefaultPrefix + "0"
 	ip := result.Interfaces[defaultInterface].IPConfigs[0].IP.String()
-	logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("IP of the default interface (%s) in the netns is %s", defaultInterface, ip)
+	if doLog {
+		logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("IP of the default interface (%s) in the netns is %s", defaultInterface, ip)
 
-	logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("getting netns file descriptor from the pid %d", pid)
+		logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("getting netns file descriptor from the pid %d", pid)
+	}
 	newNS, err := netns.GetFromPid(pid)
 	if err != nil {
 		return fmt.Errorf("creating new netns failed: %v", err)
@@ -145,7 +185,9 @@ func (b benchmarkCNI) createNetwork(plugin string) error {
 	defer newNS.Close()
 
 	// Switch into the new netns.
-	logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("[performing setns into netns from pid %d", pid)
+	if doLog {
+		logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("[performing setns into netns from pid %d", pid)
+	}
 	if err := netns.Set(newNS); err != nil {
 		return fmt.Errorf("switching to new netns failed: %v", err)
 	}
@@ -172,7 +214,9 @@ func (b benchmarkCNI) createNetwork(plugin string) error {
 	if err != nil {
 		return fmt.Errorf("reading response body failed: %v", err)
 	}
-	logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("httpbin returned: %s", strings.Replace(strings.Replace(strings.TrimSpace(string(body)), "\n", "", -1), " ", "", -1))
+	if doLog {
+		logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("httpbin returned: %s", strings.Replace(strings.Replace(strings.TrimSpace(string(body)), "\n", "", -1), " ", "", -1))
+	}
 
 	return nil
 }
