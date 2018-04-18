@@ -100,3 +100,31 @@ INFO[0003] [performing setns into netns from pid 16970   plugin=ptp
 INFO[0003] found netns ip links: device->lo, ipip->tunl0, ip6gre->gre0, ip6gretap->gretap0, erspan->erspan0, vti->ip_vti0, vti6->ip6_vti0, sit->sit0, ip6tnl->ip6tnl0, ip6gre->ip6gre0, veth->eth0  plugin=ptp
 INFO[0003] httpbin returned: {"origin":"69.203.154.19"}  plugin=ptp
 ```
+
+## Using the Makefile to update the CNI binaries, etc
+
+```console
+$ make help
+all                            Runs a clean, build, fmt, lint, test, staticcheck, vet and install
+build                          Builds a dynamic executable or package
+bump-version                   Bump the version in the version file. Set BUMP to [ patch | major | minor ]
+clean                          Cleanup any build binaries or packages
+cover                          Runs go test with coverage
+cross                          Builds the cross-compiled binaries, creating a clean directory structure (eg. GOOS/GOARCH/binary)
+fmt                            Verifies all files have men `gofmt`ed
+install                        Installs the executable or package
+lint                           Verifies `golint` passes
+release                        Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
+run-calico                     Run calico in a container for testing calico against.
+run-cilium                     Run cilium in a container for testing cilium against.
+run-containers                 Runs the calico, cilium, and weave containers.
+run-etcd                       Run etcd in a container for testing calico and cilium against.
+run-weave                      Run weave in a container for testing weave against.
+static                         Builds a static executable
+staticcheck                    Verifies `staticcheck` passes
+stop-containers                Stops all the running containers.
+tag                            Create a new git tag to prepare to build a release
+test                           Runs the go tests
+update-binaries                Run the dev dockerfile which builds all the cni binaries for testing.
+vet                            Verifies `go vet` passes<Paste>
+```
