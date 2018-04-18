@@ -150,15 +150,18 @@ LOCAL_IP_ENV?=$(shell ip route get 8.8.8.8 | head -1 | awk '{print $$7}')
 
 ETCD_CONTAINER_NAME=cni-etcd
 .PHONY: run-etcd
-run-etcd: stop-etcd ## Run etcd in a container for testing calico against.
+run-etcd: stop-etcd ## Run etcd in a container for testing calico and cilium against.
 	docker run --detach \
 		-p 127.0.0.1:2379:2379 \
+		-v /tmp/etcd:/etcd-data \
 		--name $(ETCD_CONTAINER_NAME) \
 		quay.io/coreos/etcd \
-		etcd \
-		--advertise-client-urls "http://$(LOCAL_IP_ENV):2379,http://127.0.0.1:2379,http://$(LOCAL_IP_ENV):4001,http://127.0.0.1:4001" \
-		--listen-client-urls "http://0.0.0.0:2379,http://0.0.0.0:4001"
+			etcd \
+			--data-dir=/etcd-data \
+			--advertise-client-urls "http://$(LOCAL_IP_ENV):2379,http://127.0.0.1:2379,http://$(LOCAL_IP_ENV):4001,http://127.0.0.1:4001" \
+			--listen-client-urls "http://0.0.0.0:2379,http://0.0.0.0:4001"
 
+.PHONY: stop-etcd
 stop-etcd: # Stops the etcd container.
 	@-docker rm -f $(ETCD_CONTAINER_NAME)
 
@@ -177,8 +180,30 @@ run-calico: stop-calico run-etcd ## Run calico in a container for testing calico
 		--name $(CALICO_CONTAINER_NAME) \
 		quay.io/calico/node
 
+.PHONY: stop-calico
 stop-calico: # Stops the calico container.
 	@-docker rm -f $(CALICO_CONTAINER_NAME)
+
+CILIUM_CONTAINER_NAME=cni-cilium
+.PHONY: run-cilium
+run-cilium: stop-cilium run-etcd ## Run cilium in a container for testing cilium against.
+	docker run --detach \
+		-v /sys/fs/bpf:/sys/fs/bpf \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-v /var/run/cilium:/var/run/cilium \
+		--privileged \
+		--net host \
+		--name $(CILIUM_CONTAINER_NAME) \
+		cilium/cilium \
+		cilium-agent \
+        	--debug=true \
+			-t=vxlan \
+			--kvstore=etcd \
+			--kvstore-opt=etcd.address=http://127.0.0.1:2379
+
+.PHONY: stop-cilium
+stop-cilium: # Stops the cilium container.
+	@-docker rm -f $(CILIUM_CONTAINER_NAME)
 
 .PHONY: clean
 clean: ## Cleanup any build binaries or packages
