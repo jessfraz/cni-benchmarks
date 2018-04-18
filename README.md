@@ -2,6 +2,18 @@
 
 [![Travis CI](https://travis-ci.org/jessfraz/cni-benchmarks.svg?branch=master)](https://travis-ci.org/jessfraz/cni-benchmarks)
 
+## What this does...
+
+The `main.go` resulting binary loads all the cni plugin configurations from
+[`net.d`](net.d) performs the following on each:
+
+1. Unshares a new network namespace with a `sleep` process.
+2. Sets up networking for the process via the specific plugin passed.
+3. Enters the network namespace and calls get to `https://httpbin/ip` 
+    just to make sure network works.
+4.  Returns to the original namespace. Kills the process and cleans up the
+    network.
+
 ## Running
 
 Running the benchmarks is just done with go.
