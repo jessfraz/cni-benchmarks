@@ -51,4 +51,13 @@ You will need to use sudo since it requires creating network namespaces.
 
 ```console
 $ sudo go test -bench=.
+goos: linux
+goarch: amd64
+pkg: github.com/jessfraz/cni-benchmarks
+BenchmarkCreateNetworkBridge-8                 2        1188596449 ns/op
+BenchmarkCreateNetworkIPvlan-8                 1        1154609347 ns/op
+BenchmarkCreateNetworkMacvlan-8                1        1018058236 ns/op
+BenchmarkCreateNetworkPTP-8                    1        1111937856 ns/op
+PASS
+ok      github.com/jessfraz/cni-benchmarks      6.524s
 ```
