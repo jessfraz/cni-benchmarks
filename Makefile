@@ -136,6 +136,10 @@ AUTHORS:
 	@$(file >>$@,# For how it is generated, see `make AUTHORS`.)
 	@echo "$(shell git log --format='\n%aN <%aE>' | LC_ALL=C.UTF-8 sort -uf)" >> $@
 
+DOCKER_DEV_IMAGE=r.j3ss.co/cni-benchmarks-dev
+update-binaries: ## Run the dev dockerfile which builds all the cni binaries for testing.
+	@docker build --rm --force-rm -t $(DOCKER_DEV_IMAGE) -f Dockerfile.dev .
+
 .PHONY: clean
 clean: ## Cleanup any build binaries or packages
 	@echo "+ $@"

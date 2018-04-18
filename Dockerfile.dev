@@ -1,0 +1,40 @@
+FROM golang:alpine as gobuilder
+MAINTAINER Jessica Frazelle <jess@linux.com>
+
+ENV PATH /go/bin:/usr/local/go/bin:$PATH
+ENV GOPATH /go
+
+RUN	apk add --no-cache \
+	bash \
+	ca-certificates \
+	git \
+	gcc \
+	libc-dev \
+	libgcc \
+	linux-headers \
+	make
+
+FROM gobuilder AS cnibuilder
+ENV CNI_VERSION master
+RUN git clone --branch "${CNI_VERSION}" --depth 1 https://github.com/containernetworking/plugins.git /go/src/github.com/containernetworking/plugins
+WORKDIR /go/src/github.com/containernetworking/plugins
+RUN ./build.sh
+
+FROM gobuilder AS calicobuilder
+ENV CNI_VERSION master
+RUN git clone --branch "${CNI_VERSION}" --depth 1 https://github.com/projectcalico/cni-plugin.git /go/src/github.com/projectcalico/cni-plugin
+WORKDIR /go/src/github.com/projectcalico/cni-plugin
+RUN go get github.com/Masterminds/glide
+RUN glide install -strip-vendor
+RUN CGO_ENABLED=0 go build -v -i -o /usr/bin/calico \
+	-ldflags "-s -w" calico.go
+RUN CGO_ENABLED=0 go build -v -i -o /usr/bin/calico-ipam \
+	-ldflags "-s -w" ipam/calico-ipam.go
+
+FROM alpine:latest
+RUN	apk add --no-cache \
+	bash
+COPY --from=cnibuilder /go/src/github.com/containernetworking/plugins/bin/ /cni/bin/
+COPY --from=calicobuilder /usr/bin/calico /cni/bin/
+COPY --from=calicobuilder /usr/bin/calico-ipam /cni/bin/
+ENTRYPOINT [ "bash" ]
