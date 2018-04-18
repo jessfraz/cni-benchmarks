@@ -39,7 +39,7 @@ func main() {
 	}
 	pluginConfDir := filepath.Join(wd, "net.d")
 	pluginDirs := []string{cniBinDir, cni.DefaultCNIDir}
-	logrus.Infof("Initializing new CNI library instance with configuration directory %s and plugin directories %s...", pluginConfDir, strings.Join(pluginDirs, ","))
+	logrus.Infof("Initializing new CNI library instance with configuration directory %s and plugin directories %s...", pluginConfDir, strings.Join(pluginDirs, ", "))
 	libcni, err := cni.New(
 		cni.WithMinNetworkCount(2),
 		cni.WithPluginConfDir(pluginConfDir),
@@ -80,7 +80,7 @@ func main() {
 	// Get the IP of the default interface.
 	defaultInterface := cni.DefaultPrefix + "0"
 	ip := result.Interfaces[defaultInterface].IPConfigs[0].IP.String()
-	fmt.Printf("IP of the default interface in the netns is %s:%s", defaultInterface, ip)
+	logrus.Infof("IP of the default interface in the netns is %s:%s", defaultInterface, ip)
 
 	logrus.Infof("Getting netns file descriptor from the pid %d", pid)
 	newNS, err := netns.GetFromPid(pid)
@@ -100,7 +100,13 @@ func main() {
 	if err != nil {
 		logrus.Fatalf("getting list of ip links failed: %v", err)
 	}
-	logrus.Infof("Found netns ip links: %#v", links)
+	l := []string{}
+	for _, link := range links {
+		l = append(l, link.Type())
+	}
+	if len(l) > 0 {
+		logrus.Infof("Found netns ip links: %s", strings.Join(l, ", "))
+	}
 
 	// Switch back to the original netns.
 	logrus.Info("Switching back into our original netns...")
