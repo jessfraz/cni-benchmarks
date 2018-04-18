@@ -34,3 +34,7 @@
 [[override]]
   name = "github.com/vishvananda/netns"
   branch = "master"
+
+[[override]]
+  name = "github.com/vishvananda/netlink"
+  branch = "master"

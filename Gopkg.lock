@@ -34,6 +34,15 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/vishvananda/netlink"
+  packages = [
+    ".",
+    "nl"
+  ]
+  revision = "85aa3b74a43a9fa174a588ce9a042c9b71b0842c"
+
+[[projects]]
+  branch = "master"
   name = "github.com/vishvananda/netns"
   packages = ["."]
   revision = "be1fbeda19366dea804f00efff2dd73a1642fdcc"
@@ -51,11 +60,11 @@
     "unix",
     "windows"
   ]
-  revision = "2281fa97ef7b0c26324634d5a22f04babdac8713"
+  revision = "b126b21c05a91c856b027c16779c12e3bf236954"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "92a8321b54fdc6119c6772088f0816713d7010e5d28a22d8197622b3523d03f6"
+  inputs-digest = "338c812e1a9ad36b65f7bcd8f6317000367f04fc3712cfe1ced89ca06b775baf"
   solver-name = "gps-cdcl"
   solver-version = 1
