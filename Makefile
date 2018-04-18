@@ -10,6 +10,7 @@ BUILDTAGS :=
 
 # Set the build dir, where built cross-compiled binaries will be output
 BUILDDIR := ${PREFIX}/cross
+BINDIR := ${PREFIX}/bin
 
 # Populate version variables
 # Add to compile time flags
@@ -142,14 +143,50 @@ build-dev-image:
 	@docker build --rm --force-rm -t $(DOCKER_DEV_IMAGE) -f Dockerfile.dev .
 
 .PHONY: update-binaries
-update-binaries: build-dev-image ## Run the dev dockerfile which builds all the cni binaries for testing.
-	-$(shell docker run --rm --disable-content-trust=true $(DOCKER_DEV_IMAGE) bash -c 'tar -c *' | tar -xvC $(CURDIR)/bin/ > /dev/null)
+update-binaries: clean build-dev-image ## Run the dev dockerfile which builds all the cni binaries for testing.
+	-$(shell docker run --rm --disable-content-trust=true $(DOCKER_DEV_IMAGE) bash -c 'tar -c /cni/bin' | tar -xv --strip-components=1 -C . > /dev/null)
+
+LOCAL_IP_ENV?=$(shell ip route get 8.8.8.8 | head -1 | awk '{print $$7}')
+
+ETCD_CONTAINER_NAME=cni-etcd
+.PHONY: run-etcd
+run-etcd: stop-etcd ## Run etcd in a container for testing calico against.
+	docker run --detach \
+		-p 127.0.0.1:2379:2379 \
+		--name $(ETCD_CONTAINER_NAME) \
+		quay.io/coreos/etcd \
+		etcd \
+		--advertise-client-urls "http://$(LOCAL_IP_ENV):2379,http://127.0.0.1:2379,http://$(LOCAL_IP_ENV):4001,http://127.0.0.1:4001" \
+		--listen-client-urls "http://0.0.0.0:2379,http://0.0.0.0:4001"
+
+stop-etcd: # Stops the etcd container.
+	@-docker rm -f $(ETCD_CONTAINER_NAME)
+
+CALICO_CONTAINER_NAME=cni-calico
+.PHONY: run-calico
+run-calico: stop-calico run-etcd ## Run calico in a container for testing calico against.
+	docker run --detach \
+		-e "ETCD_ENDPOINTS=http://127.0.0.1:2379" \
+		-e "CALICO_IP=autodetect" \
+		-v /var/lib/calico:/var/lib/calico \
+		-v /var/run/calico:/var/run/calico \
+		-v /lib/modules:/lib/modules \
+		-v /tmp/calico:/var/log/calico \
+		--privileged \
+		--net host \
+		--name $(CALICO_CONTAINER_NAME) \
+		quay.io/calico/node
+
+stop-calico: # Stops the calico container.
+	@-docker rm -f $(CALICO_CONTAINER_NAME)
 
 .PHONY: clean
 clean: ## Cleanup any build binaries or packages
 	@echo "+ $@"
 	$(RM) $(NAME)
 	$(RM) -r $(BUILDDIR)
+	$(RM) -r $(BINDIR)
+	sudo $(RM) -r /var/lib/calico
 
 .PHONY: help
 help:

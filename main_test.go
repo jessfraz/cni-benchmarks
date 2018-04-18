@@ -24,6 +24,26 @@ func BenchmarkCreateNetworkBridge(b *testing.B) {
 	}
 }
 
+// You should run `make run-calico` before running this benchmark.
+func BenchmarkCreateNetworkCalico(b *testing.B) {
+	// Lock the OS Thread so we don't accidentally switch namespaces.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	a, err := newCNIBenchmark()
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer a.originalNS.Close()
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		if err := a.createNetwork("calico", false); err != nil {
+			b.Fatalf("[%d] %v", n, err)
+		}
+	}
+}
+
 func BenchmarkCreateNetworkIPvlan(b *testing.B) {
 	// Lock the OS Thread so we don't accidentally switch namespaces.
 	runtime.LockOSThread()

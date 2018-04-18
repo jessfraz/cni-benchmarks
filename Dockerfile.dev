@@ -1,18 +1,8 @@
-FROM golang:alpine as gobuilder
+FROM golang:latest as gobuilder
 MAINTAINER Jessica Frazelle <jess@linux.com>
 
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
-
-RUN	apk add --no-cache \
-	bash \
-	ca-certificates \
-	git \
-	gcc \
-	libc-dev \
-	libgcc \
-	linux-headers \
-	make
 
 FROM gobuilder AS cnibuilder
 ENV CNI_VERSION master
