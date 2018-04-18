@@ -27,7 +27,7 @@ func main() {
 	defer runtime.UnlockOSThread()
 
 	// Save the current network namespace.
-	logrus.Infof("Getting current netns...")
+	logrus.Infof("Getting current netns")
 	originalNS, err := netns.Get()
 	if err != nil {
 		logrus.Fatalf("getting current netns failed: %v", err)
@@ -41,7 +41,7 @@ func main() {
 	}
 	pluginConfDir := filepath.Join(wd, "net.d")
 	pluginDirs := []string{cniBinDir, cni.DefaultCNIDir}
-	logrus.Infof("Initializing new CNI library instance with configuration directory %s and plugin directories %s...", pluginConfDir, strings.Join(pluginDirs, ", "))
+	logrus.Infof("Initializing new CNI library instance with configuration directory %s and plugin directories %s", pluginConfDir, strings.Join(pluginDirs, ", "))
 	libcni, err := cni.New(
 		cni.WithMinNetworkCount(2),
 		cni.WithPluginConfDir(pluginConfDir),
@@ -80,10 +80,10 @@ func main() {
 
 	// Iterate over the plugin configurations.
 	for _, plugin := range plugins {
-		logrus.Infof("[%s] creating new netns process...", plugin)
+		logrus.WithFields(logrus.Fields{"plugin": plugin}).Info("creating new netns process")
 
 		if err := b.createNetwork(plugin); err != nil {
-			logrus.Errorf("[%s] %v", plugin, err)
+			logrus.WithFields(logrus.Fields{"plugin": plugin}).Error(err)
 		}
 	}
 }
@@ -107,7 +107,7 @@ func (b benchmarkCNI) createNetwork(plugin string) error {
 	defer cmd.Process.Kill()
 	pid := cmd.Process.Pid
 
-	logrus.Infof("[%s] new netns process has PID %d", plugin, pid)
+	logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("netns process has PID %d", pid)
 
 	// Load the CNI configuration.
 	if err := b.libcni.Load(
@@ -128,9 +128,9 @@ func (b benchmarkCNI) createNetwork(plugin string) error {
 	// Get the IP of the default interface.
 	defaultInterface := cni.DefaultPrefix + "0"
 	ip := result.Interfaces[defaultInterface].IPConfigs[0].IP.String()
-	logrus.Infof("[%s] IP of the default interface (%s) in the netns is %s", plugin, defaultInterface, ip)
+	logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("IP of the default interface (%s) in the netns is %s", defaultInterface, ip)
 
-	logrus.Infof("[%s] getting netns file descriptor from the pid %d", plugin, pid)
+	logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("getting netns file descriptor from the pid %d", pid)
 	newNS, err := netns.GetFromPid(pid)
 	if err != nil {
 		return fmt.Errorf("creating new netns failed: %v", err)
@@ -138,7 +138,7 @@ func (b benchmarkCNI) createNetwork(plugin string) error {
 	defer newNS.Close()
 
 	// Switch into the new netns.
-	logrus.Infof("[%s] performing setns into netns from pid %d", plugin, pid)
+	logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("[performing setns into netns from pid %d", pid)
 	if err := netns.Set(newNS); err != nil {
 		return fmt.Errorf("switching to new netns failed: %v", err)
 	}
@@ -153,19 +153,19 @@ func (b benchmarkCNI) createNetwork(plugin string) error {
 		l = append(l, fmt.Sprintf("%s->%s", link.Type(), link.Attrs().Name))
 	}
 	if len(l) > 0 {
-		logrus.Infof("[%s] found netns ip links: %s", plugin, strings.Join(l, ", "))
+		logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("found netns ip links: %s", strings.Join(l, ", "))
 	}
 
 	// Try getting an outbound resource.
 	resp, err := http.Get("https://httpbin.org/ip")
 	if err != nil {
-		return fmt.Errorf("[%s] getting an out of network resource failed: %v", err)
+		return fmt.Errorf("getting an out of network resource failed: %v", err)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("reading response body failed: %v", err)
 	}
-	logrus.Infof("[%s] httpbin returned: %s", plugin, strings.Replace(strings.Replace(strings.TrimSpace(string(body)), "\n", "", -1), " ", "", -1))
+	logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("httpbin returned: %s", strings.Replace(strings.Replace(strings.TrimSpace(string(body)), "\n", "", -1), " ", "", -1))
 
 	return nil
 }
