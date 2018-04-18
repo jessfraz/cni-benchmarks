@@ -55,6 +55,7 @@ BenchmarkCreateNetworkCilium-8                10        2026048715  ns/op
 BenchmarkCreateNetworkIPvlan-8                50        1189171868  ns/op
 BenchmarkCreateNetworkMacvlan-8               20        1176936944  ns/op
 BenchmarkCreateNetworkPTP-8                   20        1315428103  ns/op
+BenchmarkCreateNetworkWeave-8                  1        31601342289 ns/op
 PASS
 ```
 
