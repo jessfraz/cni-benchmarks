@@ -4,6 +4,22 @@
 
 ## Running
 
+Running the benchmarks is just done with go.
+You will need to use sudo since it requires creating network namespaces.
+
+```console
+$ sudo go test -bench=.
+goos: linux
+goarch: amd64
+pkg: github.com/jessfraz/cni-benchmarks
+BenchmarkCreateNetworkBridge-8                 2        1188596449 ns/op
+BenchmarkCreateNetworkIPvlan-8                 1        1154609347 ns/op
+BenchmarkCreateNetworkMacvlan-8                1        1018058236 ns/op
+BenchmarkCreateNetworkPTP-8                    1        1111937856 ns/op
+PASS
+ok      github.com/jessfraz/cni-benchmarks      6.524s
+```
+
 The `main.go` program just runs all the plugins.
 
 ```console
@@ -44,20 +60,4 @@ INFO[0003] getting netns file descriptor from the pid 16970  plugin=ptp
 INFO[0003] [performing setns into netns from pid 16970   plugin=ptp
 INFO[0003] found netns ip links: device->lo, ipip->tunl0, ip6gre->gre0, ip6gretap->gretap0, erspan->erspan0, vti->ip_vti0, vti6->ip6_vti0, sit->sit0, ip6tnl->ip6tnl0, ip6gre->ip6gre0, veth->eth0  plugin=ptp
 INFO[0003] httpbin returned: {"origin":"69.203.154.19"}  plugin=ptp
-```
-
-Running the benchmarks is just done with go.
-You will need to use sudo since it requires creating network namespaces.
-
-```console
-$ sudo go test -bench=.
-goos: linux
-goarch: amd64
-pkg: github.com/jessfraz/cni-benchmarks
-BenchmarkCreateNetworkBridge-8                 2        1188596449 ns/op
-BenchmarkCreateNetworkIPvlan-8                 1        1154609347 ns/op
-BenchmarkCreateNetworkMacvlan-8                1        1018058236 ns/op
-BenchmarkCreateNetworkPTP-8                    1        1111937856 ns/op
-PASS
-ok      github.com/jessfraz/cni-benchmarks      6.524s
 ```
