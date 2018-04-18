@@ -165,7 +165,7 @@ func (b benchmarkCNI) createNetwork(plugin string) error {
 	if err != nil {
 		return fmt.Errorf("reading response body failed: %v", err)
 	}
-	logrus.Infof("[%s] httpbin returned: %s", plugin, strings.Replace(strings.TrimSpace(string(body)), "\n", "", -1))
+	logrus.Infof("[%s] httpbin returned: %s", plugin, strings.Replace(strings.Replace(strings.TrimSpace(string(body)), "\n", "", -1), " ", "", -1))
 
 	return nil
 }
