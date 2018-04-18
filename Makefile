@@ -143,7 +143,7 @@ build-dev-image:
 	@docker build --rm --force-rm -t $(DOCKER_DEV_IMAGE) -f Dockerfile.dev .
 
 .PHONY: update-binaries
-update-binaries: clean build-dev-image ## Run the dev dockerfile which builds all the cni binaries for testing.
+update-binaries: clean-binaries build-dev-image ## Run the dev dockerfile which builds all the cni binaries for testing.
 	-$(shell docker run --rm --disable-content-trust=true $(DOCKER_DEV_IMAGE) bash -c 'tar -c /cni/bin' | tar -xv --strip-components=1 -C . > /dev/null)
 
 LOCAL_IP_ENV?=$(shell ip route get 8.8.8.8 | head -1 | awk '{print $$7}')
@@ -172,7 +172,7 @@ stop-etcd: # Stops the etcd container.
 	@-docker rm -f $(ETCD_CONTAINER_NAME)
 
 CALICO_CONTAINER_NAME=cni-calico
-.PHONY: run-calico
+.PHONY: clean run-calico
 run-calico: stop-calico run-etcd ## Run calico in a container for testing calico against.
 	docker run --detach \
 		-e "ETCD_ENDPOINTS=http://127.0.0.1:2379" \
@@ -232,12 +232,15 @@ stop-weave: # Stops the weave containers.
 		weaveworks/weaveexec stop
 	@-docker rm -f weave weavedb weavevolumes-2.3.0
 
+.PHONY: clean-binaries
+clean-binaries:
+	$(RM) -r $(BINDIR)
+
 .PHONY: clean
 clean: stop-containers ## Cleanup any build binaries or packages
 	@echo "+ $@"
 	$(RM) $(NAME)
 	$(RM) -r $(BUILDDIR)
-	$(RM) -r $(BINDIR)
 	sudo $(RM) -r /var/lib/calico
 
 .PHONY: help
