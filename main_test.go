@@ -120,3 +120,23 @@ func BenchmarkCreateNetworkPTP(b *testing.B) {
 		}
 	}
 }
+
+// You should run `make run-weave` before running this benchmark.
+func BenchmarkCreateNetworkWeave(b *testing.B) {
+	// Lock the OS Thread so we don't accidentally switch namespaces.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	a, err := newCNIBenchmark()
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer a.originalNS.Close()
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		if err := a.createNetwork("weave", false); err != nil {
+			b.Fatalf("[%d] %v", n, err)
+		}
+	}
+}

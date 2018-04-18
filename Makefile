@@ -148,6 +148,12 @@ update-binaries: clean build-dev-image ## Run the dev dockerfile which builds al
 
 LOCAL_IP_ENV?=$(shell ip route get 8.8.8.8 | head -1 | awk '{print $$7}')
 
+.PHONY: run-containers
+run-containers: stop-containers run-etcd run-calico run-cilium run-weave ## Runs the calico, cilium, and weave containers.
+
+.PHONY: stop-containers
+stop-containers: stop-etcd stop-calico stop-cilium stop-weave ## Stops all the running containers.
+
 ETCD_CONTAINER_NAME=cni-etcd
 .PHONY: run-etcd
 run-etcd: stop-etcd ## Run etcd in a container for testing calico and cilium against.
@@ -205,8 +211,29 @@ run-cilium: stop-cilium run-etcd ## Run cilium in a container for testing cilium
 stop-cilium: # Stops the cilium container.
 	@-docker rm -f $(CILIUM_CONTAINER_NAME)
 
+WEAVE_CONTAINER_NAME=cni-weave
+.PHONY: run-weave
+run-weave: stop-weave ## Run weave in a container for testing weave against.
+	docker run --rm \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-v $(shell which docker):/usr/bin/docker:ro \
+		-v /tmp/weave:/weavedb \
+		--privileged \
+		--net host \
+		weaveworks/weaveexec launch
+
+.PHONY: stop-weave
+stop-weave: # Stops the weave container.
+	docker run --rm \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-v $(shell which docker):/usr/bin/docker:ro \
+		-v /tmp/weave:/weavedb \
+		--privileged \
+		--net host \
+		weaveworks/weaveexec stop
+
 .PHONY: clean
-clean: ## Cleanup any build binaries or packages
+clean: stop-containers ## Cleanup any build binaries or packages
 	@echo "+ $@"
 	$(RM) $(NAME)
 	$(RM) -r $(BUILDDIR)

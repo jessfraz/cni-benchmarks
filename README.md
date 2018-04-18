@@ -21,10 +21,11 @@ You will need to use `sudo` since it requires creating network namespaces.
 
 **Setup**
 
-Before testing the cilium and calico plugins you will want to run:
+Before testing the cilium, calico, and weave plugins you will want to run the
+following command which will start etcd, calico, cilium, and weave containers:
 
 ```
-$ make run-calico run-cilium
+$ make run-containers
 ```
 
 **Running the benchmarks**
@@ -40,6 +41,7 @@ BenchmarkCreateNetworkCilium-8                 1        2974889818 ns/op
 BenchmarkCreateNetworkIPvlan-8                 2        1245111887 ns/op
 BenchmarkCreateNetworkMacvlan-8                1        1333958217 ns/op
 BenchmarkCreateNetworkPTP-8                    1        1262308289 ns/op
+BenchmarkCreateNetworkWeave-8                  1        31650053959 ns/op
 PASS
 ok      github.com/jessfraz/cni-benchmarks      21.221s
 

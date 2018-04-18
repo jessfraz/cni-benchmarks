@@ -1,8 +1,12 @@
-FROM golang:latest as gobuilder
+FROM golang:stretch as gobuilder
 MAINTAINER Jessica Frazelle <jess@linux.com>
 
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
+
+RUN go clean -i net \
+	&& go install -tags netgo std \
+	&& go install -race -tags netgo std
 
 FROM gobuilder AS cnibuilder
 ENV CNI_VERSION master
@@ -27,6 +31,8 @@ RUN git clone --branch "${CNI_VERSION}" --depth 1 https://github.com/cilium/cili
 WORKDIR /go/src/github.com/cilium/cilium/plugins/cilium-cni
 RUN make
 
+FROM weaveworks/weave AS weavebuilder
+
 FROM alpine:latest
 RUN	apk add --no-cache \
 	bash
@@ -34,4 +40,5 @@ COPY --from=cnibuilder /go/src/github.com/containernetworking/plugins/bin/ /cni/
 COPY --from=calicobuilder /usr/bin/calico /cni/bin/
 COPY --from=calicobuilder /usr/bin/calico-ipam /cni/bin/
 COPY --from=ciliumbuilder /go/src/github.com/cilium/cilium/plugins/cilium-cni/cilium-cni /cni/bin/
+COPY --from=weavebuilder /usr/bin/weaveutil /cni/bin/
 WORKDIR /cni/bin
