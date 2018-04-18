@@ -72,81 +72,100 @@ func main() {
 
 	logrus.Infof("Parent process ($this) has PID %d", os.Getpid())
 
+	b := benchmarkCNI{
+		originalNS:    originalNS,
+		libcni:        libcni,
+		pluginConfDir: pluginConfDir,
+	}
+
 	// Iterate over the plugin configurations.
 	for _, plugin := range plugins {
-		// Create a new network namespace.
 		logrus.Infof("[%s] creating new netns process...", plugin)
-		cmd := exec.Command("sleep", "30")
-		cmd.SysProcAttr = &syscall.SysProcAttr{Unshareflags: syscall.CLONE_NEWNET}
-		if err := cmd.Start(); err != nil {
-			logrus.Fatalf("[%s] unsharing command failed: %v", plugin, err)
-		}
-		pid := cmd.Process.Pid
 
-		logrus.Infof("[%s] new netns process has PID %d", plugin, pid)
-
-		// Load the CNI configuration.
-		if err := libcni.Load(
-			cni.WithLoNetwork,
-			cni.WithConfFile(filepath.Join(wd, "net.d", plugin+".conf")),
-		); err != nil {
-			logrus.Fatalf("[%s] loading CNI configuration failed: %v", plugin, err)
-		}
-
-		// Setup network for namespace.
-		//netnsFD := fmt.Sprintf("/proc/%d/task/%d/ns/net", os.Getpid(), syscall.Gettid())
-		netnsFD := fmt.Sprintf("/proc/%d/ns/net", pid)
-		result, err := libcni.Setup(fmt.Sprintf("%d", pid), netnsFD)
-		if err != nil {
-			logrus.Fatalf("[%s] setting up netns for id (%d) and netns (%s) failed: %v", plugin, pid, netnsFD, err)
-		}
-
-		// Get the IP of the default interface.
-		defaultInterface := cni.DefaultPrefix + "0"
-		ip := result.Interfaces[defaultInterface].IPConfigs[0].IP.String()
-		logrus.Infof("[%s] IP of the default interface (%s) in the netns is %s", plugin, defaultInterface, ip)
-
-		logrus.Infof("[%s] getting netns file descriptor from the pid %d", plugin, pid)
-		newNS, err := netns.GetFromPid(pid)
-		if err != nil {
-			logrus.Fatalf("[%s] creating new netns failed: %v", plugin, err)
-		}
-		defer newNS.Close()
-
-		// Switch into the new netns.
-		logrus.Infof("[%s] performing setns into netns from pid %d", plugin, pid)
-		if err := netns.Set(newNS); err != nil {
-			logrus.Fatalf("[%s] switching to new netns failed: %v", plugin, err)
-		}
-
-		// Get a list of the links.
-		links, err := netlink.LinkList()
-		if err != nil {
-			logrus.Fatalf("[%s] getting list of ip links failed: %v", plugin, err)
-		}
-		l := []string{}
-		for _, link := range links {
-			l = append(l, fmt.Sprintf("%s->%s", link.Type(), link.Attrs().Name))
-		}
-		if len(l) > 0 {
-			logrus.Infof("[%s] found netns ip links: %s", plugin, strings.Join(l, ", "))
-		}
-
-		// Try getting an outbound resource.
-		resp, err := http.Get("https://httpbin.org/ip")
-		if err != nil {
-			logrus.Fatalf("[%s] getting an out of network resource failed: %v", plugin, err)
-		}
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			logrus.Fatalf("[%s] reading response body failed: %v", plugin, err)
-		}
-		logrus.Infof("[%s] httpbin returned: %s", plugin, strings.Replace(strings.TrimSpace(string(body)), "\n", "", -1))
-
-		// Switch back to the original netns.
-		logrus.Info("Switching back into our original netns...")
-		if err := netns.Set(originalNS); err != nil {
-			logrus.Fatalf("[%s] switching back to original netns failed: %v", plugin, err)
+		if err := b.createNetwork(plugin); err != nil {
+			logrus.Errorf("[%s] %v", plugin, err)
 		}
 	}
+}
+
+type benchmarkCNI struct {
+	originalNS    netns.NsHandle
+	libcni        cni.CNI
+	pluginConfDir string
+}
+
+func (b benchmarkCNI) createNetwork(plugin string) error {
+	// Switch back to the original netns.
+	defer netns.Set(b.originalNS)
+
+	// Create a new network namespace.
+	cmd := exec.Command("sleep", "30")
+	cmd.SysProcAttr = &syscall.SysProcAttr{Unshareflags: syscall.CLONE_NEWNET}
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("unsharing command failed: %v", err)
+	}
+	defer cmd.Process.Kill()
+	pid := cmd.Process.Pid
+
+	logrus.Infof("[%s] new netns process has PID %d", plugin, pid)
+
+	// Load the CNI configuration.
+	if err := b.libcni.Load(
+		cni.WithLoNetwork,
+		cni.WithConfFile(filepath.Join(b.pluginConfDir, plugin+".conf")),
+	); err != nil {
+		return fmt.Errorf("loading CNI configuration failed: %v", err)
+	}
+
+	// Setup network for namespace.
+	//netnsFD := fmt.Sprintf("/proc/%d/task/%d/ns/net", os.Getpid(), syscall.Gettid())
+	netnsFD := fmt.Sprintf("/proc/%d/ns/net", pid)
+	result, err := b.libcni.Setup(fmt.Sprintf("%d", pid), netnsFD)
+	if err != nil {
+		return fmt.Errorf("setting up netns for id (%d) and netns (%s) failed: %v", pid, netnsFD, err)
+	}
+
+	// Get the IP of the default interface.
+	defaultInterface := cni.DefaultPrefix + "0"
+	ip := result.Interfaces[defaultInterface].IPConfigs[0].IP.String()
+	logrus.Infof("[%s] IP of the default interface (%s) in the netns is %s", plugin, defaultInterface, ip)
+
+	logrus.Infof("[%s] getting netns file descriptor from the pid %d", plugin, pid)
+	newNS, err := netns.GetFromPid(pid)
+	if err != nil {
+		return fmt.Errorf("creating new netns failed: %v", err)
+	}
+	defer newNS.Close()
+
+	// Switch into the new netns.
+	logrus.Infof("[%s] performing setns into netns from pid %d", plugin, pid)
+	if err := netns.Set(newNS); err != nil {
+		return fmt.Errorf("switching to new netns failed: %v", err)
+	}
+
+	// Get a list of the links.
+	links, err := netlink.LinkList()
+	if err != nil {
+		return fmt.Errorf("getting list of ip links failed: %v", err)
+	}
+	l := []string{}
+	for _, link := range links {
+		l = append(l, fmt.Sprintf("%s->%s", link.Type(), link.Attrs().Name))
+	}
+	if len(l) > 0 {
+		logrus.Infof("[%s] found netns ip links: %s", plugin, strings.Join(l, ", "))
+	}
+
+	// Try getting an outbound resource.
+	resp, err := http.Get("https://httpbin.org/ip")
+	if err != nil {
+		return fmt.Errorf("[%s] getting an out of network resource failed: %v", err)
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("reading response body failed: %v", err)
+	}
+	logrus.Infof("[%s] httpbin returned: %s", plugin, strings.Replace(strings.TrimSpace(string(body)), "\n", "", -1))
+
+	return nil
 }
