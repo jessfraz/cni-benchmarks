@@ -26,34 +26,15 @@ func main() {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	// Save the current network namespace.
-	logrus.Infof("Getting current netns")
-	originalNS, err := netns.Get()
+	b, err := newCNIBenchmark()
 	if err != nil {
-		logrus.Fatalf("getting current netns failed: %v", err)
+		logrus.Fatal(err)
 	}
-	defer originalNS.Close()
-
-	// Initialize CNI library.
-	wd, err := os.Getwd()
-	if err != nil {
-		logrus.Fatalf("getting working directory failed: %v", err)
-	}
-	pluginConfDir := filepath.Join(wd, "net.d")
-	pluginDirs := []string{cniBinDir, cni.DefaultCNIDir}
-	logrus.Infof("Initializing new CNI library instance with configuration directory %s and plugin directories %s", pluginConfDir, strings.Join(pluginDirs, ", "))
-	libcni, err := cni.New(
-		cni.WithMinNetworkCount(2),
-		cni.WithPluginConfDir(pluginConfDir),
-		cni.WithPluginDir(pluginDirs),
-	)
-	if err != nil {
-		logrus.Fatalf("creating new CNI instance failed: %v", err)
-	}
+	defer b.originalNS.Close()
 
 	// Walk the configuration directory and get all the configs.
 	plugins := []string{}
-	if err := filepath.Walk(pluginConfDir, func(p string, f os.FileInfo, err error) error {
+	if err := filepath.Walk(b.pluginConfDir, func(p string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -66,17 +47,11 @@ func main() {
 		plugins = append(plugins, filepath.Base(strings.TrimSuffix(p, ".conf")))
 		return nil
 	}); err != nil {
-		logrus.Fatalf("walking plugin configuration directory %s failed: %v", pluginConfDir, err)
+		logrus.Fatalf("walking plugin configuration directory %s failed: %v", b.pluginConfDir, err)
 	}
 	logrus.Infof("Found plugin configurations for %s", strings.Join(plugins, ", "))
 
 	logrus.Infof("Parent process ($this) has PID %d", os.Getpid())
-
-	b := benchmarkCNI{
-		originalNS:    originalNS,
-		libcni:        libcni,
-		pluginConfDir: pluginConfDir,
-	}
 
 	// Iterate over the plugin configurations.
 	for _, plugin := range plugins {
@@ -92,6 +67,38 @@ type benchmarkCNI struct {
 	originalNS    netns.NsHandle
 	libcni        cni.CNI
 	pluginConfDir string
+}
+
+func newCNIBenchmark() (*benchmarkCNI, error) {
+	// Save the current network namespace.
+	logrus.Infof("Getting current netns")
+	originalNS, err := netns.Get()
+	if err != nil {
+		return nil, fmt.Errorf("getting current netns failed: %v", err)
+	}
+
+	// Initialize CNI library.
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("getting working directory failed: %v", err)
+	}
+	pluginConfDir := filepath.Join(wd, "net.d")
+	pluginDirs := []string{cniBinDir, cni.DefaultCNIDir}
+	logrus.Infof("Initializing new CNI library instance with configuration directory %s and plugin directories %s", pluginConfDir, strings.Join(pluginDirs, ", "))
+	libcni, err := cni.New(
+		cni.WithMinNetworkCount(2),
+		cni.WithPluginConfDir(pluginConfDir),
+		cni.WithPluginDir(pluginDirs),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating new CNI instance failed: %v", err)
+	}
+
+	return &benchmarkCNI{
+		originalNS:    originalNS,
+		libcni:        libcni,
+		pluginConfDir: pluginConfDir,
+	}, nil
 }
 
 func (b benchmarkCNI) createNetwork(plugin string) error {
