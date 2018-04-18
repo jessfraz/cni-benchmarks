@@ -18,6 +18,17 @@ BenchmarkCreateNetworkMacvlan-8                1        1018058236 ns/op
 BenchmarkCreateNetworkPTP-8                    1        1111937856 ns/op
 PASS
 ok      github.com/jessfraz/cni-benchmarks      6.524s
+
+$ sudo go test -bench=. -benchtime=20s
+goos: linux
+goarch: amd64
+pkg: github.com/jessfraz/cni-benchmarks
+BenchmarkCreateNetworkBridge-8                30        1365005810 ns/op
+BenchmarkCreateNetworkIPvlan-8                30        1128743945 ns/op
+BenchmarkCreateNetworkMacvlan-8               20        1146909318 ns/op
+BenchmarkCreateNetworkPTP-8                   20        1185070353 ns/op
+PASS
+ok      github.com/jessfraz/cni-benchmarks      125.870s
 ```
 
 The `main.go` program just runs all the plugins.
