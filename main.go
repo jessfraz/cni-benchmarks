@@ -29,8 +29,6 @@ const (
 )
 
 var (
-	cniBinDir = filepath.Join(os.Getenv("GOPATH"), "src/github.com/containernetworking/plugins/bin")
-
 	debug bool
 	vrsn  bool
 )
@@ -119,7 +117,8 @@ func newCNIBenchmark() (*benchmarkCNI, error) {
 		return nil, fmt.Errorf("getting working directory failed: %v", err)
 	}
 	pluginConfDir := filepath.Join(wd, "net.d")
-	pluginDirs := []string{cniBinDir, cni.DefaultCNIDir}
+	binDir := filepath.Join(wd, "bin")
+	pluginDirs := []string{binDir, cni.DefaultCNIDir}
 	logrus.Debugf("Initializing new CNI library instance with configuration directory %s and plugin directories %s", pluginConfDir, strings.Join(pluginDirs, ", "))
 	libcni, err := cni.New(
 		cni.WithMinNetworkCount(2),
