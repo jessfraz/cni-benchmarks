@@ -211,7 +211,6 @@ run-cilium: stop-cilium run-etcd ## Run cilium in a container for testing cilium
 stop-cilium: # Stops the cilium container.
 	@-docker rm -f $(CILIUM_CONTAINER_NAME)
 
-WEAVE_CONTAINER_NAME=cni-weave
 .PHONY: run-weave
 run-weave: stop-weave ## Run weave in a container for testing weave against.
 	docker run --rm \
