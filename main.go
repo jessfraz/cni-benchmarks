@@ -201,7 +201,7 @@ func (b benchmarkCNI) createNetwork(plugin string, doLog bool) error {
 	for _, link := range links {
 		l = append(l, fmt.Sprintf("%s->%s", link.Type(), link.Attrs().Name))
 	}
-	if len(l) > 0 {
+	if len(l) > 0 && doLog {
 		logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("found netns ip links: %s", strings.Join(l, ", "))
 	}
 
