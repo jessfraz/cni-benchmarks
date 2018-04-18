@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -102,11 +104,22 @@ func main() {
 	}
 	l := []string{}
 	for _, link := range links {
-		l = append(l, link.Type())
+		l = append(l, fmt.Sprintf("%s->%s", link.Type(), link.Attrs().Name))
 	}
 	if len(l) > 0 {
 		logrus.Infof("Found netns ip links: %s", strings.Join(l, ", "))
 	}
+
+	// Try getting an outbound resource.
+	resp, err := http.Get("https://httpbin.org/ip")
+	if err != nil {
+		logrus.Errorf("getting an out of network resource failed: %v", err)
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logrus.Errorf("reading response body failed: %v", err)
+	}
+	logrus.Infof("httpbin returned: %s", strings.TrimSpace(string(body)))
 
 	// Switch back to the original netns.
 	logrus.Info("Switching back into our original netns...")
