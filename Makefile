@@ -149,7 +149,7 @@ update-binaries: clean-binaries build-dev-image ## Run the dev dockerfile which 
 LOCAL_IP_ENV?=$(shell ip route get 8.8.8.8 | head -1 | awk '{print $$7}')
 
 .PHONY: run-containers
-run-containers: stop-containers run-etcd run-calico run-cilium run-weave ## Runs the calico, cilium, and weave containers.
+run-containers: stop-containers run-etcd run-calico run-cilium run-weave ## Runs the etcd, calico, cilium, and weave containers.
 
 .PHONY: stop-containers
 stop-containers: stop-etcd stop-calico stop-cilium stop-weave ## Stops all the running containers.
@@ -202,7 +202,6 @@ run-cilium: stop-cilium run-etcd ## Run cilium in a container for testing cilium
 		--name $(CILIUM_CONTAINER_NAME) \
 		cilium/cilium \
 		cilium-agent \
-        	--debug=true \
 			-t=vxlan \
 			--kvstore=etcd \
 			--kvstore-opt=etcd.address=http://127.0.0.1:2379
