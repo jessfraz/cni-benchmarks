@@ -169,6 +169,7 @@ func (b benchmarkCNI) createNetwork(plugin string, doLog bool) error {
 	if err != nil {
 		return fmt.Errorf("setting up netns for id (%d) and netns (%s) failed: %v", pid, netnsFD, err)
 	}
+	defer b.libcni.Remove(fmt.Sprintf("%d", pid), netnsFD)
 
 	// Get the IP of the default interface.
 	defaultInterface := cni.DefaultPrefix + "0"
