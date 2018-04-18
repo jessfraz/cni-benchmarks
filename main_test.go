@@ -10,16 +10,16 @@ func BenchmarkCreateNetworkBridge(b *testing.B) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	b, err := newCNIBenchmark()
+	a, err := newCNIBenchmark()
 	if err != nil {
-		t.Fatal(err)
+		b.Fatal(err)
 	}
-	defer b.originalNS.Close()
+	defer a.originalNS.Close()
 
 	// run the Fib function b.N times
 	for n := 0; n < b.N; n++ {
-		if err := b.createNetwork("bridge"); err != nil {
-			t.Fatalf("[%d] %v", n, err)
+		if err := a.createNetwork("bridge"); err != nil {
+			b.Fatalf("[%d] %v", n, err)
 		}
 	}
 }
