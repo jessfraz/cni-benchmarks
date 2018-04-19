@@ -14,6 +14,9 @@ The `main.go` resulting binary loads all the cni plugin configurations from
 4.  Returns to the original namespace. Kills the process and cleans up the
     network.
 
+**This is not benchmarking network speed, it is benchmarking the creation,
+setup and deletion of networks in the network namespace.**
+
 ## Running
 
 Running the benchmarks is just done with go.
