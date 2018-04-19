@@ -137,9 +137,6 @@ func newCNIBenchmark() (*benchmarkCNI, error) {
 }
 
 func (b benchmarkCNI) createNetwork(plugin string, doLog bool) error {
-	// Switch back to the original netns.
-	defer netns.Set(b.originalNS)
-
 	// Create a new network namespace.
 	cmd := exec.Command("sleep", "30")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Unshareflags: syscall.CLONE_NEWNET}
@@ -216,6 +213,10 @@ func (b benchmarkCNI) createNetwork(plugin string, doLog bool) error {
 	}
 	if doLog {
 		logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("httpbin returned: %s", strings.Replace(strings.Replace(strings.TrimSpace(string(body)), "\n", "", -1), " ", "", -1))
+	}
+
+	if err := netns.Set(b.originalNS); err != nil {
+		return fmt.Errorf("returning to original namespace failed: %v", err)
 	}
 
 	return nil
