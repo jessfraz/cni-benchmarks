@@ -21,12 +21,15 @@ You will need to use `sudo` since it requires creating network namespaces.
 
 ### Setup
 
-Before testing the cilium, calico, and weave plugins you will want to run the
+Before testing the cilium, calico, flannel, and weave plugins you will want to run the
 following command which will start etcd, calico, cilium, and weave containers:
 
 ```
 $ make run-containers
 ```
+
+**NOTE:** both cilium and flannel use vxlan devices so you cannot run both at
+the same time. You will need to test those separately.
 
 ### Running the benchmarks
 
@@ -38,6 +41,7 @@ pkg: github.com/jessfraz/cni-benchmarks
 BenchmarkCreateNetworkBridge-8                 1        1139952630 ns/op
 BenchmarkCreateNetworkCalico-8                 1        1200416607 ns/op
 BenchmarkCreateNetworkCilium-8                 1        1329559748 ns/op
+BenchmarkCreateNetworkFlannel-8                1        1207025536 ns/op
 BenchmarkCreateNetworkIPvlan-8                 2        1135102997 ns/op
 BenchmarkCreateNetworkMacvlan-8                1        1138442676 ns/op
 BenchmarkCreateNetworkPTP-8                    1        1258083693 ns/op
@@ -53,6 +57,7 @@ pkg: github.com/jessfraz/cni-benchmarks
 BenchmarkCreateNetworkBridge-8                30        1540904853 ns/op
 BenchmarkCreateNetworkCalico-8                20        1280029392 ns/op
 BenchmarkCreateNetworkCilium-8                20        1347408329 ns/op
+BenchmarkCreateNetworkFlannel-8               30        1219560662 ns/op
 BenchmarkCreateNetworkIPvlan-8                50        1196531970 ns/op
 BenchmarkCreateNetworkMacvlan-8               20        1238331945 ns/op
 BenchmarkCreateNetworkPTP-8                   20        1319141412 ns/op
@@ -107,6 +112,13 @@ INFO[0014] [performing setns into netns from pid 2109    plugin=cilium
 INFO[0014] found netns ip links: device->lo, ipip->tunl0, ip6gre->gre0, ip6gretap->gretap0, erspan->erspan0, vti->ip_vti0, vti6->ip6_vti0, sit->sit0, ip6tnl->ip6tnl0, ip6gre->ip6gre0, veth->eth0  plugin=cilium
 INFO[0014] httpbin returned: {"origin":"69.203.154.19"}  plugin=cilium
 level=debug msg="Processing CNI DEL request" args="&{2109 /proc/2109/ns/net eth0  /home/jessie/.go/src/github.com/jessfraz/cni-benchmarks/bin:/opt/cni/bin [123 34 99 110 105 86 101 114 115 105 111 110 34 58 34 34 44 34 109 116 117 34 58 49 52 53 48 44 34 110 97 109 101 34 58 34 99 105 108 105 117 109 34 44 34 116 121 112 101 34 58 34 99 105 108 105 117 109 45 99 110 105 34 125]}"
+INFO[0004] creating new netns process                    plugin=flannel
+INFO[0004] netns process has PID 9897                    plugin=flannel
+INFO[0004] IP of the default interface (eth0) in the netns is 10.6.50.2  plugin=flannel
+INFO[0004] getting netns file descriptor from the pid 9897  plugin=flannel
+INFO[0004] [performing setns into netns from pid 9897    plugin=flannel
+INFO[0004] found netns ip links: device->lo, ipip->tunl0, ip6gre->gre0, ip6gretap->gretap0, erspan->erspan0, vti->ip_vti0, vti6->ip6_vti0, sit->sit0, ip6tnl->ip6tnl0, ip6gre->ip6gre0, ipvlan->eth0  plugin=flannel
+INFO[0004] httpbin returned: {"origin":"69.203.154.19"}  plugin=flannel
 INFO[0014] creating new netns process                    plugin=ipvlan
 INFO[0015] netns process has PID 2235                    plugin=ipvlan
 INFO[0015] IP of the default interface (eth0) in the netns is 10.1.2.163  plugin=ipvlan
@@ -140,7 +152,6 @@ INFO[0019] httpbin returned: {"origin":"69.203.154.19"}  plugin=weave
 ## Using the Makefile to update the CNI binaries, etc
 
 ```console
-$ make help
 all                            Runs a clean, build, fmt, lint, test, staticcheck, vet and install
 build                          Builds a dynamic executable or package
 bump-version                   Bump the version in the version file. Set BUMP to [ patch | major | minor ]
@@ -153,8 +164,9 @@ lint                           Verifies `golint` passes
 release                        Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
 run-calico                     Run calico in a container for testing calico against.
 run-cilium                     Run cilium in a container for testing cilium against.
-run-containers                 Runs the calico, cilium, and weave containers.
+run-containers                 Runs the etcd, calico, cilium, flannel, and weave containers.
 run-etcd                       Run etcd in a container for testing calico and cilium against.
+run-flannel                    Run flannel in a container for testing flannel against.
 run-weave                      Run weave in a container for testing weave against.
 static                         Builds a static executable
 staticcheck                    Verifies `staticcheck` passes
@@ -162,5 +174,5 @@ stop-containers                Stops all the running containers.
 tag                            Create a new git tag to prepare to build a release
 test                           Runs the go tests
 update-binaries                Run the dev dockerfile which builds all the cni binaries for testing.
-vet                            Verifies `go vet` passes<Paste>
+vet                            Verifies `go vet` passes
 ```

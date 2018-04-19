@@ -149,23 +149,25 @@ update-binaries: clean-binaries build-dev-image ## Run the dev dockerfile which 
 LOCAL_IP_ENV?=$(shell ip route get 8.8.8.8 | head -1 | awk '{print $$7}')
 
 .PHONY: run-containers
-run-containers: stop-containers run-etcd run-calico run-cilium run-weave ## Runs the etcd, calico, cilium, and weave containers.
+run-containers: stop-containers clean run-etcd run-calico run-cilium run-flannel run-weave ## Runs the etcd, calico, cilium, flannel, and weave containers.
 
 .PHONY: stop-containers
-stop-containers: stop-etcd stop-calico stop-cilium stop-weave ## Stops all the running containers.
+stop-containers: stop-etcd stop-calico stop-cilium stop-flannel stop-weave ## Stops all the running containers.
 
 ETCD_CONTAINER_NAME=cni-etcd
+ETCD_ENDPOINTS=http://127.0.0.1:2379
 .PHONY: run-etcd
 run-etcd: stop-etcd ## Run etcd in a container for testing calico and cilium against.
 	docker run --detach \
+		--restart always \
 		-p 127.0.0.1:2379:2379 \
 		-v /tmp/etcd:/etcd-data \
 		--name $(ETCD_CONTAINER_NAME) \
 		quay.io/coreos/etcd \
 			etcd \
 			--data-dir=/etcd-data \
-			--advertise-client-urls "http://$(LOCAL_IP_ENV):2379,http://127.0.0.1:2379,http://$(LOCAL_IP_ENV):4001,http://127.0.0.1:4001" \
-			--listen-client-urls "http://0.0.0.0:2379,http://0.0.0.0:4001"
+			--advertise-client-urls "http://$(LOCAL_IP_ENV):2379,$(ETCD_ENDPOINTS)" \
+			--listen-client-urls "http://0.0.0.0:2379"
 
 .PHONY: stop-etcd
 stop-etcd: # Stops the etcd container.
@@ -175,7 +177,8 @@ CALICO_CONTAINER_NAME=cni-calico
 .PHONY: clean run-calico
 run-calico: stop-calico run-etcd ## Run calico in a container for testing calico against.
 	docker run --detach \
-		-e "ETCD_ENDPOINTS=http://127.0.0.1:2379" \
+		--restart always \
+		-e "ETCD_ENDPOINTS=$(ETCD_ENDPOINTS)" \
 		-e "CALICO_IP=autodetect" \
 		-v /var/lib/calico:/var/lib/calico \
 		-v /var/run/calico:/var/run/calico \
@@ -194,6 +197,7 @@ CILIUM_CONTAINER_NAME=cni-cilium
 .PHONY: run-cilium
 run-cilium: stop-cilium run-etcd ## Run cilium in a container for testing cilium against.
 	docker run --detach \
+		--restart always \
 		-v /sys/fs/bpf:/sys/fs/bpf \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v /var/run/cilium:/var/run/cilium \
@@ -204,11 +208,36 @@ run-cilium: stop-cilium run-etcd ## Run cilium in a container for testing cilium
 		cilium-agent \
 			-t=vxlan \
 			--kvstore=etcd \
-			--kvstore-opt=etcd.address=http://127.0.0.1:2379
+			--kvstore-opt=etcd.address=$(ETCD_ENDPOINTS)
 
 .PHONY: stop-cilium
 stop-cilium: # Stops the cilium container.
 	@-docker rm -f $(CILIUM_CONTAINER_NAME)
+
+FLANNEL_CONTAINER_NAME=cni-flannel
+FLANNEL_VERSION=v0.10.0-amd64
+.PHONY: run-flannel
+run-flannel: stop-flannel run-etcd ## Run flannel in a container for testing flannel against.
+	docker run --detach \
+		--restart always \
+		-v /var/run/flannel:/var/run/flannel \
+		--privileged \
+		--net host \
+		--name $(FLANNEL_CONTAINER_NAME) \
+		quay.io/coreos/flannel:$(FLANNEL_VERSION) \
+			--ip-masq \
+			--etcd-endpoints=$(ETCD_ENDPOINTS)
+	-docker run --rm \
+		--net=host \
+		quay.io/coreos/etcd \
+			etcdctl \
+			set /coreos.com/network/config \
+			'{ "Network": "10.6.0.0/16", "Backend": {"Type": "vxlan"}}'
+
+.PHONY: stop-flannel
+stop-flannel: # Stops the flannel container.
+	@-docker rm -f $(FLANNEL_CONTAINER_NAME)
+	@-sudo ip link delete flannel.1
 
 .PHONY: run-weave
 run-weave: stop-weave ## Run weave in a container for testing weave against.
@@ -240,7 +269,7 @@ clean: stop-containers ## Cleanup any build binaries or packages
 	@echo "+ $@"
 	$(RM) $(NAME)
 	$(RM) -r $(BUILDDIR)
-	sudo $(RM) -r /var/lib/calico
+	sudo $(RM) -r /var/lib/calico /tmp/etcd /tmp/calico /tmp/weave
 
 .PHONY: help
 help:
