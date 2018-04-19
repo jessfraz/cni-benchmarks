@@ -38,14 +38,15 @@ $ sudo go test -bench=.
 goos: linux
 goarch: amd64
 pkg: github.com/jessfraz/cni-benchmarks
-BenchmarkCreateNetworkBridge-8                 1        1139952630 ns/op
-BenchmarkCreateNetworkCalico-8                 1        1200416607 ns/op
-BenchmarkCreateNetworkCilium-8                 1        1329559748 ns/op
-BenchmarkCreateNetworkFlannel-8                1        1207025536 ns/op
-BenchmarkCreateNetworkIPvlan-8                 2        1135102997 ns/op
-BenchmarkCreateNetworkMacvlan-8                1        1138442676 ns/op
-BenchmarkCreateNetworkPTP-8                    1        1258083693 ns/op
-BenchmarkCreateNetworkWeave-8                  1        1557366751 ns/op
+BenchmarkCreateNetworkBridge-8                         1        1139952630 ns/op
+BenchmarkCreateNetworkCalico-8                         1        1200416607 ns/op
+BenchmarkCreateNetworkCilium-8                         1        1329559748 ns/op
+BenchmarkCreateNetworkFlannelIPvlan-8                  2         898847769 ns/op
+BenchmarkCreateNetworkFlannelBridge-8                  1        1326596245 ns/op
+BenchmarkCreateNetworkIPvlan-8                         2        1135102997 ns/op
+BenchmarkCreateNetworkMacvlan-8                        1        1138442676 ns/op
+BenchmarkCreateNetworkPTP-8                            1        1258083693 ns/op
+BenchmarkCreateNetworkWeave-8                          1        1557366751 ns/op
 PASS
 ok      github.com/jessfraz/cni-benchmarks      10.514s
 
@@ -54,14 +55,15 @@ $ sudo go test -bench=. -benchtime=20s
 goos: linux
 goarch: amd64
 pkg: github.com/jessfraz/cni-benchmarks
-BenchmarkCreateNetworkBridge-8                30        1540904853 ns/op
-BenchmarkCreateNetworkCalico-8                20        1280029392 ns/op
-BenchmarkCreateNetworkCilium-8                20        1347408329 ns/op
-BenchmarkCreateNetworkFlannel-8               30        1219560662 ns/op
-BenchmarkCreateNetworkIPvlan-8                50        1196531970 ns/op
-BenchmarkCreateNetworkMacvlan-8               20        1238331945 ns/op
-BenchmarkCreateNetworkPTP-8                   20        1319141412 ns/op
-BenchmarkCreateNetworkWeave-8                 20        1467203727 ns/op
+BenchmarkCreateNetworkBridge-8                        30        1540904853 ns/op
+BenchmarkCreateNetworkCalico-8                        20        1280029392 ns/op
+BenchmarkCreateNetworkCilium-8                        20        1347408329 ns/op
+BenchmarkCreateNetworkFlannelIPvlan-8                 50        1237863402 ns/op
+BenchmarkCreateNetworkFlannelBridge-8                 20        1348524451 ns/op
+BenchmarkCreateNetworkIPvlan-8                        50        1196531970 ns/op
+BenchmarkCreateNetworkMacvlan-8                       20        1238331945 ns/op
+BenchmarkCreateNetworkPTP-8                           20        1319141412 ns/op
+BenchmarkCreateNetworkWeave-8                         20        1467203727 ns/op
 PASS
 ok      github.com/jessfraz/cni-benchmarks      248.320s
 ```
@@ -112,13 +114,20 @@ INFO[0014] [performing setns into netns from pid 2109    plugin=cilium
 INFO[0014] found netns ip links: device->lo, ipip->tunl0, ip6gre->gre0, ip6gretap->gretap0, erspan->erspan0, vti->ip_vti0, vti6->ip6_vti0, sit->sit0, ip6tnl->ip6tnl0, ip6gre->ip6gre0, veth->eth0  plugin=cilium
 INFO[0014] httpbin returned: {"origin":"69.203.154.19"}  plugin=cilium
 level=debug msg="Processing CNI DEL request" args="&{2109 /proc/2109/ns/net eth0  /home/jessie/.go/src/github.com/jessfraz/cni-benchmarks/bin:/opt/cni/bin [123 34 99 110 105 86 101 114 115 105 111 110 34 58 34 34 44 34 109 116 117 34 58 49 52 53 48 44 34 110 97 109 101 34 58 34 99 105 108 105 117 109 34 44 34 116 121 112 101 34 58 34 99 105 108 105 117 109 45 99 110 105 34 125]}"
-INFO[0004] creating new netns process                    plugin=flannel
-INFO[0004] netns process has PID 9897                    plugin=flannel
-INFO[0004] IP of the default interface (eth0) in the netns is 10.6.50.2  plugin=flannel
-INFO[0004] getting netns file descriptor from the pid 9897  plugin=flannel
-INFO[0004] [performing setns into netns from pid 9897    plugin=flannel
-INFO[0004] found netns ip links: device->lo, ipip->tunl0, ip6gre->gre0, ip6gretap->gretap0, erspan->erspan0, vti->ip_vti0, vti6->ip6_vti0, sit->sit0, ip6tnl->ip6tnl0, ip6gre->ip6gre0, ipvlan->eth0  plugin=flannel
-INFO[0004] httpbin returned: {"origin":"69.203.154.19"}  plugin=flannel
+INFO[0003] creating new netns process                    plugin=flannel-bridge
+INFO[0004] netns process has PID 3535                    plugin=flannel-bridge
+INFO[0004] IP of the default interface (eth0) in the netns is 10.6.50.26  plugin=flannel-bridge
+INFO[0004] getting netns file descriptor from the pid 3535  plugin=flannel-bridge
+INFO[0004] [performing setns into netns from pid 3535    plugin=flannel-bridge
+INFO[0004] found netns ip links: device->lo, ipip->tunl0, ip6gre->gre0, ip6gretap->gretap0, erspan->erspan0, vti->ip_vti0, vti6->ip6_vti0, sit->sit0, ip6tnl->ip6tnl0, ip6gre->ip6gre0, veth->eth0  plugin=flannel-bridge
+INFO[0004] httpbin returned: {"origin":"69.203.154.19"}  plugin=flannel-bridge
+INFO[0004] creating new netns process                    plugin=flannel-ipvlan
+INFO[0005] netns process has PID 3644                    plugin=flannel-ipvlan
+INFO[0005] IP of the default interface (eth0) in the netns is 10.6.50.95  plugin=flannel-ipvlan
+INFO[0005] getting netns file descriptor from the pid 3644  plugin=flannel-ipvlan
+INFO[0005] [performing setns into netns from pid 3644    plugin=flannel-ipvlan
+INFO[0005] found netns ip links: device->lo, ipip->tunl0, ip6gre->gre0, ip6gretap->gretap0, erspan->erspan0, vti->ip_vti0, vti6->ip6_vti0, sit->sit0, ip6tnl->ip6tnl0, ip6gre->ip6gre0, ipvlan->eth0  plugin=flannel-ipvlan
+INFO[0005] httpbin returned: {"origin":"69.203.154.19"}  plugin=flannel-ipvlan
 INFO[0014] creating new netns process                    plugin=ipvlan
 INFO[0015] netns process has PID 2235                    plugin=ipvlan
 INFO[0015] IP of the default interface (eth0) in the netns is 10.1.2.163  plugin=ipvlan
