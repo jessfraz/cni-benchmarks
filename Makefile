@@ -158,7 +158,7 @@ ETCD_CONTAINER_NAME=cni-etcd
 ETCD_ENDPOINTS=http://127.0.0.1:2379
 .PHONY: run-etcd
 run-etcd: stop-etcd ## Run etcd in a container for testing calico and cilium against.
-	docker run --detach \
+	@docker run --detach \
 		--restart always \
 		-p 127.0.0.1:2379:2379 \
 		-v /tmp/etcd:/etcd-data \
@@ -167,16 +167,16 @@ run-etcd: stop-etcd ## Run etcd in a container for testing calico and cilium aga
 			etcd \
 			--data-dir=/etcd-data \
 			--advertise-client-urls "http://$(LOCAL_IP_ENV):2379,$(ETCD_ENDPOINTS)" \
-			--listen-client-urls "http://0.0.0.0:2379"
+			--listen-client-urls "http://0.0.0.0:2379" > /dev/null
 
 .PHONY: stop-etcd
 stop-etcd: # Stops the etcd container.
-	@-docker rm -f $(ETCD_CONTAINER_NAME)
+	@-docker rm -f $(ETCD_CONTAINER_NAME) >/dev/null 2>&1
 
 CALICO_CONTAINER_NAME=cni-calico
 .PHONY: clean run-calico
 run-calico: stop-calico run-etcd ## Run calico in a container for testing calico against.
-	docker run --detach \
+	@docker run --detach \
 		--restart always \
 		-e "ETCD_ENDPOINTS=$(ETCD_ENDPOINTS)" \
 		-e "CALICO_IP=autodetect" \
@@ -187,16 +187,16 @@ run-calico: stop-calico run-etcd ## Run calico in a container for testing calico
 		--privileged \
 		--net host \
 		--name $(CALICO_CONTAINER_NAME) \
-		quay.io/calico/node
+		quay.io/calico/node > /dev/null
 
 .PHONY: stop-calico
 stop-calico: # Stops the calico container.
-	@-docker rm -f $(CALICO_CONTAINER_NAME)
+	@-docker rm -f $(CALICO_CONTAINER_NAME) >/dev/null 2>&1
 
 CILIUM_CONTAINER_NAME=cni-cilium
 .PHONY: run-cilium
 run-cilium: stop-cilium run-etcd ## Run cilium in a container for testing cilium against.
-	docker run --detach \
+	@docker run --detach \
 		--restart always \
 		-v /sys/fs/bpf:/sys/fs/bpf \
 		-v /var/run/docker.sock:/var/run/docker.sock \
@@ -208,17 +208,18 @@ run-cilium: stop-cilium run-etcd ## Run cilium in a container for testing cilium
 		cilium-agent \
 			-t=vxlan \
 			--kvstore=etcd \
-			--kvstore-opt=etcd.address=$(ETCD_ENDPOINTS)
+			--kvstore-opt=etcd.address=$(ETCD_ENDPOINTS) > /dev/null
 
 .PHONY: stop-cilium
 stop-cilium: # Stops the cilium container.
-	@-docker rm -f $(CILIUM_CONTAINER_NAME)
+	@-docker rm -f $(CILIUM_CONTAINER_NAME) >/dev/null 2>&1
+	@-sudo ip link delete cilium_vxlan >/dev/null 2>&1
 
 FLANNEL_CONTAINER_NAME=cni-flannel
 FLANNEL_VERSION=v0.10.0-amd64
 .PHONY: run-flannel
 run-flannel: stop-flannel run-etcd ## Run flannel in a container for testing flannel against.
-	docker run --detach \
+	@docker run --detach \
 		--restart always \
 		-v /var/run/flannel:/var/run/flannel \
 		--privileged \
@@ -226,28 +227,28 @@ run-flannel: stop-flannel run-etcd ## Run flannel in a container for testing fla
 		--name $(FLANNEL_CONTAINER_NAME) \
 		quay.io/coreos/flannel:$(FLANNEL_VERSION) \
 			--ip-masq \
-			--etcd-endpoints=$(ETCD_ENDPOINTS)
-	-docker run --rm \
+			--etcd-endpoints=$(ETCD_ENDPOINTS) > /dev/null
+	@docker run --rm \
 		--net=host \
 		quay.io/coreos/etcd \
 			etcdctl \
 			set /coreos.com/network/config \
-			'{ "Network": "10.6.0.0/16", "Backend": {"Type": "vxlan"}}'
+			'{ "Network": "10.6.0.0/16", "Backend": {"Type": "vxlan"}}' > /dev/null
 
 .PHONY: stop-flannel
 stop-flannel: # Stops the flannel container.
-	@-docker rm -f $(FLANNEL_CONTAINER_NAME)
-	@-sudo ip link delete flannel.1
+	@-docker rm -f $(FLANNEL_CONTAINER_NAME) >/dev/null 2>&1
+	@-sudo ip link delete flannel.1 >/dev/null 2>&1
 
 .PHONY: run-weave
 run-weave: stop-weave ## Run weave in a container for testing weave against.
-	docker run --rm \
+	@docker run --rm \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v $(shell which docker):/usr/bin/docker:ro \
 		-v /tmp/weave:/weavedb \
 		--privileged \
 		--net host \
-		weaveworks/weaveexec launch
+		weaveworks/weaveexec launch > /dev/null
 
 .PHONY: stop-weave
 stop-weave: # Stops the weave containers.
@@ -257,8 +258,22 @@ stop-weave: # Stops the weave containers.
 		-v /tmp/weave:/weavedb \
 		--privileged \
 		--net host \
-		weaveworks/weaveexec stop
-	@-docker rm -f weave weavedb weavevolumes-2.3.0
+		weaveworks/weaveexec stop 2>/dev/null
+	@-docker rm -f weave weavedb weavevolumes-2.3.0 >/dev/null 2>&1
+
+BENCHTIME:=1s
+.PHONY: benchmark
+benchmark: benchmark-partial benchmark-flannel ## Run all our benchmarks.
+
+# Benchmark everything but flannel since we can't have 2 vxlan devices at once.
+.PHONY: benchmark-partial
+benchmark-partial: stop-containers run-calico run-cilium run-weave
+	@sudo go test -bench=Benchmark[^Flannel] -benchtime=$(BENCHTIME)
+
+# Benchmark flannel separate since we can't have 2 vxlan devices at once.
+.PHONY: benchmark-flannel
+benchmark-flannel: stop-containers run-flannel
+	@sudo go test -bench=BenchmarkFlannel -benchtime=$(BENCHTIME)
 
 .PHONY: clean-binaries
 clean-binaries:

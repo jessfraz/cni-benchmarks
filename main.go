@@ -61,7 +61,7 @@ func main() {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	b, err := newCNIBenchmark()
+	b, err := newCNIBenchmark(true)
 	if err != nil {
 		logrus.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func main() {
 	for _, plugin := range plugins {
 		logrus.WithFields(logrus.Fields{"plugin": plugin}).Info("creating new netns process")
 
-		if err := b.createNetwork(plugin, true); err != nil {
+		if err := b.createNetwork(plugin); err != nil {
 			logrus.WithFields(logrus.Fields{"plugin": plugin}).Error(err)
 		}
 	}
@@ -102,9 +102,13 @@ type benchmarkCNI struct {
 	originalNS    netns.NsHandle
 	libcni        cni.CNI
 	pluginConfDir string
+	doLog         bool
+	process       *os.Process
+	netnsFD       string
+	nsHandle      netns.NsHandle
 }
 
-func newCNIBenchmark() (*benchmarkCNI, error) {
+func newCNIBenchmark(doLog bool) (*benchmarkCNI, error) {
 	// Save the current network namespace.
 	originalNS, err := netns.Get()
 	if err != nil {
@@ -133,60 +137,36 @@ func newCNIBenchmark() (*benchmarkCNI, error) {
 		originalNS:    originalNS,
 		libcni:        libcni,
 		pluginConfDir: pluginConfDir,
+		doLog:         doLog,
 	}, nil
 }
 
-func (b benchmarkCNI) createNetwork(plugin string, doLog bool) error {
-	// Create a new network namespace.
-	cmd := exec.Command("sleep", "30")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Unshareflags: syscall.CLONE_NEWNET}
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("unsharing command failed: %v", err)
+func (b *benchmarkCNI) createNetwork(plugin string) error {
+	if err := b.createProcess(plugin); err != nil {
+		return err
 	}
-	defer cmd.Process.Kill()
-	pid := cmd.Process.Pid
+	defer b.process.Kill()
 
-	if doLog {
-		logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("netns process has PID %d", pid)
+	if err := b.loadCNIConfig(plugin); err != nil {
+		return err
 	}
 
-	// Load the CNI configuration.
-	if err := b.libcni.Load(
-		cni.WithLoNetwork,
-		cni.WithConfFile(filepath.Join(b.pluginConfDir, plugin+".conf")),
-	); err != nil {
-		return fmt.Errorf("loading CNI configuration failed: %v", err)
-	}
-
-	// Setup network for namespace.
-	//netnsFD := fmt.Sprintf("/proc/%d/task/%d/ns/net", os.Getpid(), syscall.Gettid())
-	netnsFD := fmt.Sprintf("/proc/%d/ns/net", pid)
-	result, err := b.libcni.Setup(fmt.Sprintf("%d", pid), netnsFD)
+	result, err := b.setupNetNS()
 	if err != nil {
-		return fmt.Errorf("setting up netns for id (%d) and netns (%s) failed: %v", pid, netnsFD, err)
+		return err
 	}
-	defer b.libcni.Remove(fmt.Sprintf("%d", pid), netnsFD)
+	defer b.libcni.Remove(fmt.Sprintf("%d", b.process.Pid), b.netnsFD)
+	defer b.nsHandle.Close()
 
 	// Get the IP of the default interface.
 	defaultInterface := cni.DefaultPrefix + "0"
 	ip := result.Interfaces[defaultInterface].IPConfigs[0].IP.String()
-	if doLog {
-		logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("IP of the default interface (%s) in the netns is %s", defaultInterface, ip)
-
-		logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("getting netns file descriptor from the pid %d", pid)
-	}
-	newNS, err := netns.GetFromPid(pid)
-	if err != nil {
-		return fmt.Errorf("creating new netns failed: %v", err)
-	}
-	defer newNS.Close()
+	b.log(plugin, "IP of the default interface (%s) in the netns is %s", defaultInterface, ip)
 
 	// Switch into the new netns.
-	if doLog {
-		logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("[performing setns into netns from pid %d", pid)
-	}
-	if err := netns.Set(newNS); err != nil {
-		return fmt.Errorf("switching to new netns failed: %v", err)
+	b.log(plugin, "performing setns into netns from pid %d", b.process.Pid)
+	if err := b.setNS(); err != nil {
+		return err
 	}
 
 	// Get a list of the links.
@@ -198,8 +178,8 @@ func (b benchmarkCNI) createNetwork(plugin string, doLog bool) error {
 	for _, link := range links {
 		l = append(l, fmt.Sprintf("%s->%s", link.Type(), link.Attrs().Name))
 	}
-	if len(l) > 0 && doLog {
-		logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("found netns ip links: %s", strings.Join(l, ", "))
+	if len(l) > 0 {
+		b.log(plugin, "found netns ip links: %s", strings.Join(l, ", "))
 	}
 
 	// Try getting an outbound resource.
@@ -211,13 +191,68 @@ func (b benchmarkCNI) createNetwork(plugin string, doLog bool) error {
 	if err != nil {
 		return fmt.Errorf("reading response body failed: %v", err)
 	}
-	if doLog {
-		logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof("httpbin returned: %s", strings.Replace(strings.Replace(strings.TrimSpace(string(body)), "\n", "", -1), " ", "", -1))
-	}
+	b.log(plugin, "httpbin returned: %s", strings.Replace(strings.Replace(strings.TrimSpace(string(body)), "\n", "", -1), " ", "", -1))
 
 	if err := netns.Set(b.originalNS); err != nil {
 		return fmt.Errorf("returning to original namespace failed: %v", err)
 	}
 
 	return nil
+}
+
+func (b *benchmarkCNI) createProcess(plugin string) error {
+	// Create a process in a new network namespace.
+	cmd := exec.Command("sleep", "30")
+	cmd.SysProcAttr = &syscall.SysProcAttr{Unshareflags: syscall.CLONE_NEWNET}
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("unsharing command failed: %v", err)
+	}
+	b.process = cmd.Process
+	b.netnsFD = fmt.Sprintf("/proc/%d/ns/net", cmd.Process.Pid)
+
+	newNS, err := netns.GetFromPid(cmd.Process.Pid)
+	if err != nil {
+		return fmt.Errorf("creating new netns failed: %v", err)
+	}
+	b.nsHandle = newNS
+
+	b.log(plugin, "netns process has PID %d", cmd.Process.Pid)
+
+	return nil
+}
+
+func (b *benchmarkCNI) loadCNIConfig(plugin string) error {
+	// Load the CNI configuration.
+	if err := b.libcni.Load(
+		cni.WithLoNetwork,
+		cni.WithConfFile(filepath.Join(b.pluginConfDir, plugin+".conf")),
+	); err != nil {
+		return fmt.Errorf("loading CNI configuration failed: %v", err)
+	}
+
+	return nil
+}
+
+func (b *benchmarkCNI) setupNetNS() (*cni.CNIResult, error) {
+	// Setup network for namespace.
+	result, err := b.libcni.Setup(fmt.Sprintf("%d", b.process.Pid), b.netnsFD)
+	if err != nil {
+		return nil, fmt.Errorf("setting up netns for id (%d) and netns (%s) failed: %v", b.process.Pid, b.netnsFD, err)
+	}
+
+	return result, nil
+}
+
+func (b *benchmarkCNI) setNS() error {
+	if err := netns.Set(b.nsHandle); err != nil {
+		return fmt.Errorf("switching to new netns failed: %v", err)
+	}
+
+	return nil
+}
+
+func (b *benchmarkCNI) log(plugin, fmt string, args ...interface{}) {
+	if b.doLog {
+		logrus.WithFields(logrus.Fields{"plugin": plugin}).Infof(fmt, args...)
+	}
 }

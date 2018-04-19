@@ -32,43 +32,39 @@ $ make run-containers
 ```
 
 **NOTE:** both cilium and flannel use vxlan devices so you cannot run both at
-the same time. You will need to test those separately.
+the same time. You will need to test those separately. The `Makefile` will
+automatically do this for you if you are using `make benchmark`.
 
 ### Running the benchmarks
 
 ```console
-$ sudo go test -bench=.
+$ make benchmark
 goos: linux
 goarch: amd64
 pkg: github.com/jessfraz/cni-benchmarks
-BenchmarkCreateNetworkBridge-8                         1        1139952630 ns/op
-BenchmarkCreateNetworkCalico-8                         1        1200416607 ns/op
-BenchmarkCreateNetworkCilium-8                         1        1329559748 ns/op
-BenchmarkCreateNetworkFlannelIPvlan-8                  2         898847769 ns/op
-BenchmarkCreateNetworkFlannelBridge-8                  1        1326596245 ns/op
-BenchmarkCreateNetworkIPvlan-8                         2        1135102997 ns/op
-BenchmarkCreateNetworkMacvlan-8                        1        1138442676 ns/op
-BenchmarkCreateNetworkPTP-8                            1        1258083693 ns/op
-BenchmarkCreateNetworkWeave-8                          1        1557366751 ns/op
+BenchmarkBridge/setup_network_in_netns-8                       5         240322075 ns/op
+BenchmarkBridge/delete_network_from_netns-8                   10         152465601 ns/op
+BenchmarkCalico/setup_network_in_netns-8                      10         151659100 ns/op
+BenchmarkCalico/delete_network_from_netns-8                   10         151401473 ns/op 
+BenchmarkCilium/setup_network_in_netns-8                       2         649901961 ns/op
+BenchmarkCilium/delete_network_from_netns-8                   10         146525214 ns/op 
+BenchmarkFlannelIPvlan/setup_network_in_netns-8               30          46931310 ns/op
+BenchmarkFlannelIPvlan/delete_network_from_netns-8            30          50079728 ns/op
+BenchmarkFlannelBridge/setup_network_in_netns-8               20          70905517 ns/op
+BenchmarkFlannelBridge/delete_network_from_netns-8            20          92329414 ns/op
+BenchmarkIPvlan/setup_network_in_netns-8                      50          40129941 ns/op
+BenchmarkIPvlan/delete_network_from_netns-8                   50          45745399 ns/op
+BenchmarkMacvlan/setup_network_in_netns-8                     30          64339046 ns/op
+BenchmarkMacvlan/delete_network_from_netns-8                  30          48748848 ns/op
+BenchmarkPTP/setup_network_in_netns-8                         20          70349761 ns/op
+BenchmarkPTP/delete_network_from_netns-8                      20          71430002 ns/op
+BenchmarkWeave/setup_network_in_netns-8                        5         255530207 ns/op
+BenchmarkWeave/delete_network_from_netns-8                    20         118745589 ns/op
 PASS
-ok      github.com/jessfraz/cni-benchmarks      10.514s
+ok      github.com/jessfraz/cni-benchmarks      254.408s
 
-
-$ sudo go test -bench=. -benchtime=20s
-goos: linux
-goarch: amd64
-pkg: github.com/jessfraz/cni-benchmarks
-BenchmarkCreateNetworkBridge-8                        30        1540904853 ns/op
-BenchmarkCreateNetworkCalico-8                        20        1280029392 ns/op
-BenchmarkCreateNetworkCilium-8                        20        1347408329 ns/op
-BenchmarkCreateNetworkFlannelIPvlan-8                 50        1237863402 ns/op
-BenchmarkCreateNetworkFlannelBridge-8                 20        1348524451 ns/op
-BenchmarkCreateNetworkIPvlan-8                        50        1196531970 ns/op
-BenchmarkCreateNetworkMacvlan-8                       20        1238331945 ns/op
-BenchmarkCreateNetworkPTP-8                           20        1319141412 ns/op
-BenchmarkCreateNetworkWeave-8                         20        1467203727 ns/op
-PASS
-ok      github.com/jessfraz/cni-benchmarks      248.320s
+# You can change the benchmark time with the BENCHTIME variable.
+$ make benchmark BENCHTIME=20s
 ```
 
 ### Running the main program
@@ -164,7 +160,9 @@ INFO[0019] httpbin returned: {"origin":"69.203.154.19"}  plugin=weave
 ## Using the Makefile to update the CNI binaries, etc
 
 ```console
+$ make help
 all                            Runs a clean, build, fmt, lint, test, staticcheck, vet and install
+benchmark                      Run all our benchmarks.
 build                          Builds a dynamic executable or package
 bump-version                   Bump the version in the version file. Set BUMP to [ patch | major | minor ]
 clean                          Cleanup any build binaries or packages
