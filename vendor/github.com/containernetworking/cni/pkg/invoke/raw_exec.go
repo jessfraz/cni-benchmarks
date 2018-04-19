@@ -37,7 +37,7 @@ func (e *RawExec) ExecPlugin(pluginPath string, stdinData []byte, environ []stri
 		Args:   []string{pluginPath},
 		Stdin:  bytes.NewBuffer(stdinData),
 		Stdout: stdout,
-		Stderr: e.Stderr,
+		//Stderr: e.Stderr,
 	}
 	if err := c.Run(); err != nil {
 		return nil, pluginErr(err, stdout.Bytes())
