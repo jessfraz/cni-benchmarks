@@ -24,14 +24,14 @@ You will need to use `sudo` since it requires creating network namespaces.
 
 ### Setup
 
-Before testing the cilium, calico, flannel, and weave plugins you will want to run the
-following command which will start etcd, calico, cilium, and weave containers:
+Before testing the `cilium`, `calico`, `flannel`, and `weave` plugins you will want to run the
+following command which will start `etcd`, `calico`, `cilium`, and `weave` containers:
 
 ```
 $ make run-containers
 ```
 
-**NOTE:** both cilium and flannel use vxlan devices so you cannot run both at
+**NOTE:** Both `cilium` and `flannel` use `vxlan` devices so you cannot run both at
 the same time. You will need to test those separately. The `Makefile` will
 automatically do this for you if you are using `make benchmark`.
 
@@ -42,29 +42,53 @@ $ make benchmark
 goos: linux
 goarch: amd64
 pkg: github.com/jessfraz/cni-benchmarks
-BenchmarkBridge/setup_network_in_netns-8                       5         240322075 ns/op
-BenchmarkBridge/delete_network_from_netns-8                   10         152465601 ns/op
-BenchmarkCalico/setup_network_in_netns-8                      10         151659100 ns/op
-BenchmarkCalico/delete_network_from_netns-8                   10         151401473 ns/op 
-BenchmarkCilium/setup_network_in_netns-8                       2         649901961 ns/op
-BenchmarkCilium/delete_network_from_netns-8                   10         146525214 ns/op 
-BenchmarkFlannelIPvlan/setup_network_in_netns-8               30          46931310 ns/op
-BenchmarkFlannelIPvlan/delete_network_from_netns-8            30          50079728 ns/op
-BenchmarkFlannelBridge/setup_network_in_netns-8               20          70905517 ns/op
-BenchmarkFlannelBridge/delete_network_from_netns-8            20          92329414 ns/op
-BenchmarkIPvlan/setup_network_in_netns-8                      50          40129941 ns/op
-BenchmarkIPvlan/delete_network_from_netns-8                   50          45745399 ns/op
-BenchmarkMacvlan/setup_network_in_netns-8                     30          64339046 ns/op
-BenchmarkMacvlan/delete_network_from_netns-8                  30          48748848 ns/op
-BenchmarkPTP/setup_network_in_netns-8                         20          70349761 ns/op
-BenchmarkPTP/delete_network_from_netns-8                      20          71430002 ns/op
-BenchmarkWeave/setup_network_in_netns-8                        5         255530207 ns/op
-BenchmarkWeave/delete_network_from_netns-8                    20         118745589 ns/op
+BenchmarkBridge/setup_network_in_netns-8                 5         231135669 ns/op
+BenchmarkBridge/delete_network_from_netns-8             10         169736314 ns/op
+BenchmarkCalico/setup_network_in_netns-8                10         163298127 ns/op
+BenchmarkCalico/delete_network_from_netns-8             10         151587425 ns/op
+BenchmarkCilium/setup_network_in_netns-8                 2         670156235 ns/op
+BenchmarkCilium/delete_network_from_netns-8             10         146059922 ns/op
+BenchmarkFlannelIPvlan/setup_network_in_netns-8         20          58527628 ns/op
+BenchmarkFlannelIPvlan/delete_network_from_netns-8      20          55026466 ns/op
+BenchmarkFlannelBridge/setup_network_in_netns-8         30          69051333 ns/op
+BenchmarkFlannelBridge/delete_network_from_netns-8      20          78479942 ns/op
+BenchmarkIPvlan/setup_network_in_netns-8                30          36967398 ns/op
+BenchmarkIPvlan/delete_network_from_netns-8             30          50841063 ns/op
+BenchmarkMacvlan/setup_network_in_netns-8               20          68855256 ns/op
+BenchmarkMacvlan/delete_network_from_netns-8            30          50002883 ns/op
+BenchmarkPTP/setup_network_in_netns-8                   20          69022267 ns/op
+BenchmarkPTP/delete_network_from_netns-8                20          69180087 ns/op
+BenchmarkWeave/setup_network_in_netns-8                  5         251617140 ns/op
+BenchmarkWeave/delete_network_from_netns-8              10         133323976 ns/op
 PASS
-ok      github.com/jessfraz/cni-benchmarks      254.408s
+ok      github.com/jessfraz/cni-benchmarks      229.918s
+
 
 # You can change the benchmark time with the BENCHTIME variable.
-$ make benchmark BENCHTIME=20s
+$ make benchmark BENCHTIME=2s
+goos: linux
+goarch: amd64
+pkg: github.com/jessfraz/cni-benchmarks
+BenchmarkBridge/setup_network_in_netns-8                20         197434399 ns/op
+BenchmarkBridge/delete_network_from_netns-8             20         149696059 ns/op
+BenchmarkCalico/setup_network_in_netns-8                20         151476354 ns/op
+BenchmarkCalico/delete_network_from_netns-8             20         150307158 ns/op
+BenchmarkCilium/setup_network_in_netns-8                 5         653119071 ns/op
+BenchmarkCilium/delete_network_from_netns-8             20         144616301 ns/op
+BenchmarkFlannelIPvlan/setup_network_in_netns-8         50          53004252 ns/op
+BenchmarkFlannelIPvlan/delete_network_from_netns-8      50          50625823 ns/op
+BenchmarkFlannelBridge/setup_network_in_netns-8         50          64475335 ns/op
+BenchmarkFlannelBridge/delete_network_from_netns-8      50          78113078 ns/op
+BenchmarkIPvlan/setup_network_in_netns-8               100          41185221 ns/op
+BenchmarkIPvlan/delete_network_from_netns-8             50          48729643 ns/op
+BenchmarkMacvlan/setup_network_in_netns-8               30          67917123 ns/op
+BenchmarkMacvlan/delete_network_from_netns-8            50          51722428 ns/op
+BenchmarkPTP/setup_network_in_netns-8                   50          73868438 ns/op
+BenchmarkPTP/delete_network_from_netns-8                30          67201857 ns/op
+BenchmarkWeave/setup_network_in_netns-8                 20         266690572 ns/op
+BenchmarkWeave/delete_network_from_netns-8              20         127898436 ns/op
+PASS
+ok      github.com/jessfraz/cni-benchmarks      376.501s
 ```
 
 ### Running the main program
@@ -162,7 +186,7 @@ INFO[0019] httpbin returned: {"origin":"69.203.154.19"}  plugin=weave
 ```console
 $ make help
 all                            Runs a clean, build, fmt, lint, test, staticcheck, vet and install
-benchmark                      Run all our benchmarks.
+benchmark                      Run all the benchmarks. Set BENCHTIME to change the benchtime.
 build                          Builds a dynamic executable or package
 bump-version                   Bump the version in the version file. Set BUMP to [ patch | major | minor ]
 clean                          Cleanup any build binaries or packages

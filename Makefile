@@ -171,7 +171,7 @@ run-etcd: stop-etcd ## Run etcd in a container for testing calico and cilium aga
 
 .PHONY: stop-etcd
 stop-etcd: # Stops the etcd container.
-	@-docker rm -f $(ETCD_CONTAINER_NAME) >/dev/null 2>&1
+	@docker rm -f $(ETCD_CONTAINER_NAME) >/dev/null 2>&1 || true
 
 CALICO_CONTAINER_NAME=cni-calico
 .PHONY: clean run-calico
@@ -191,7 +191,7 @@ run-calico: stop-calico run-etcd ## Run calico in a container for testing calico
 
 .PHONY: stop-calico
 stop-calico: # Stops the calico container.
-	@-docker rm -f $(CALICO_CONTAINER_NAME) >/dev/null 2>&1
+	@docker rm -f $(CALICO_CONTAINER_NAME) >/dev/null 2>&1 || true
 
 CILIUM_CONTAINER_NAME=cni-cilium
 .PHONY: run-cilium
@@ -212,8 +212,8 @@ run-cilium: stop-cilium run-etcd ## Run cilium in a container for testing cilium
 
 .PHONY: stop-cilium
 stop-cilium: # Stops the cilium container.
-	@-docker rm -f $(CILIUM_CONTAINER_NAME) >/dev/null 2>&1
-	@-sudo ip link delete cilium_vxlan >/dev/null 2>&1
+	@docker rm -f $(CILIUM_CONTAINER_NAME) >/dev/null 2>&1 || true
+	@sudo ip link delete cilium_vxlan >/dev/null 2>&1 || true
 
 FLANNEL_CONTAINER_NAME=cni-flannel
 FLANNEL_VERSION=v0.10.0-amd64
@@ -237,8 +237,8 @@ run-flannel: stop-flannel run-etcd ## Run flannel in a container for testing fla
 
 .PHONY: stop-flannel
 stop-flannel: # Stops the flannel container.
-	@-docker rm -f $(FLANNEL_CONTAINER_NAME) >/dev/null 2>&1
-	@-sudo ip link delete flannel.1 >/dev/null 2>&1
+	@docker rm -f $(FLANNEL_CONTAINER_NAME) >/dev/null 2>&1 || true
+	@sudo ip link delete flannel.1 >/dev/null 2>&1 || true
 
 .PHONY: run-weave
 run-weave: stop-weave ## Run weave in a container for testing weave against.
@@ -252,18 +252,18 @@ run-weave: stop-weave ## Run weave in a container for testing weave against.
 
 .PHONY: stop-weave
 stop-weave: # Stops the weave containers.
-	@-docker run --rm \
+	@docker run --rm \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v $(shell which docker):/usr/bin/docker:ro \
 		-v /tmp/weave:/weavedb \
 		--privileged \
 		--net host \
-		weaveworks/weaveexec stop 2>/dev/null
-	@-docker rm -f weave weavedb weavevolumes-2.3.0 >/dev/null 2>&1
+		weaveworks/weaveexec stop 2>/dev/null || true
+	@docker rm -f weave weavedb weavevolumes-2.3.0 >/dev/null 2>&1 || true
 
 BENCHTIME:=1s
 .PHONY: benchmark
-benchmark: benchmark-partial benchmark-flannel ## Run all our benchmarks.
+benchmark: benchmark-partial stop-containers benchmark-flannel ## Run all the benchmarks. Set BENCHTIME to change the benchtime.
 
 # Benchmark everything but flannel since we can't have 2 vxlan devices at once.
 .PHONY: benchmark-partial
