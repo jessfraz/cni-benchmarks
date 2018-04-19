@@ -111,7 +111,6 @@ func runBenchmarkSetupNetNS(b *testing.B, plugin string) {
 		if err := a.createProcess(plugin); err != nil {
 			b.Fatal(err)
 		}
-		defer a.process.Kill()
 
 		if err := a.loadCNIConfig(plugin); err != nil {
 			b.Fatal(err)
@@ -133,6 +132,10 @@ func runBenchmarkSetupNetNS(b *testing.B, plugin string) {
 		}
 
 		if err := a.libcni.Remove(fmt.Sprintf("%d", a.process.Pid), a.netnsFD); err != nil {
+			b.Fatal(err)
+		}
+
+		if err := a.process.Kill(); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -155,7 +158,6 @@ func runBenchmarkDeleteNetwork(b *testing.B, plugin string) {
 		if err := a.createProcess(plugin); err != nil {
 			b.Fatal(err)
 		}
-		defer a.process.Kill()
 
 		if err := a.loadCNIConfig(plugin); err != nil {
 			b.Fatal(err)
@@ -176,6 +178,11 @@ func runBenchmarkDeleteNetwork(b *testing.B, plugin string) {
 
 		b.StartTimer()
 		if err := a.libcni.Remove(fmt.Sprintf("%d", a.process.Pid), a.netnsFD); err != nil {
+			b.Fatal(err)
+		}
+		b.StopTimer()
+
+		if err := a.process.Kill(); err != nil {
 			b.Fatal(err)
 		}
 	}

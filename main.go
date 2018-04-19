@@ -102,6 +102,7 @@ type benchmarkCNI struct {
 	originalNS    netns.NsHandle
 	libcni        cni.CNI
 	pluginConfDir string
+	binDir        string
 	doLog         bool
 	process       *os.Process
 	netnsFD       string
@@ -137,6 +138,7 @@ func newCNIBenchmark(doLog bool) (*benchmarkCNI, error) {
 		originalNS:    originalNS,
 		libcni:        libcni,
 		pluginConfDir: pluginConfDir,
+		binDir:        binDir,
 		doLog:         doLog,
 	}, nil
 }
@@ -202,7 +204,7 @@ func (b *benchmarkCNI) createNetwork(plugin string) error {
 
 func (b *benchmarkCNI) createProcess(plugin string) error {
 	// Create a process in a new network namespace.
-	cmd := exec.Command("sleep", "30")
+	cmd := exec.Command(filepath.Join(b.binDir, "sleeping-beauty"))
 	cmd.SysProcAttr = &syscall.SysProcAttr{Unshareflags: syscall.CLONE_NEWNET}
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("unsharing command failed: %v", err)
