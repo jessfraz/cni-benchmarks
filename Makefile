@@ -145,6 +145,7 @@ build-dev-image:
 .PHONY: update-binaries
 update-binaries: clean-binaries build-dev-image ## Run the dev dockerfile which builds all the cni binaries for testing.
 	-$(shell docker run --rm --disable-content-trust=true $(DOCKER_DEV_IMAGE) bash -c 'tar -c /cni/bin' | tar -xv --strip-components=1 -C . > /dev/null)
+	@git checkout bin/sleeping-beauty
 
 LOCAL_IP_ENV?=$(shell ip route get 8.8.8.8 | head -1 | awk '{print $$7}')
 

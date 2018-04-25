@@ -14,6 +14,16 @@ RUN git clone --branch "${CNI_VERSION}" --depth 1 https://github.com/containerne
 WORKDIR /go/src/github.com/containernetworking/plugins
 RUN ./build.sh
 
+FROM gobuilder AS azurebuilder
+ENV CNI_VERSION master
+RUN git clone --branch "${CNI_VERSION}" --depth 1 https://github.com/Azure/azure-container-networking.git /go/src/github.com/Azure/azure-container-networking
+WORKDIR /go/src/github.com/Azure/azure-container-networking
+RUN go get -d ./cni/...
+RUN CGO_ENABLED=0 go build -v -i -o /usr/bin/azure-vnet \
+	-ldflags "-s -w" ./cni/network/plugin
+RUN CGO_ENABLED=0 go build -v -i -o /usr/bin/azure-vnet-ipam \
+	-ldflags "-s -w" ./cni/ipam/plugin
+
 FROM gobuilder AS calicobuilder
 ENV CNI_VERSION master
 RUN git clone --branch "${CNI_VERSION}" --depth 1 https://github.com/projectcalico/cni-plugin.git /go/src/github.com/projectcalico/cni-plugin
@@ -26,9 +36,10 @@ RUN CGO_ENABLED=0 go build -v -i -o /usr/bin/calico-ipam \
 	-ldflags "-s -w" ipam/calico-ipam.go
 
 FROM gobuilder AS ciliumbuilder
-ENV CNI_VERSION master
-RUN git clone --branch "${CNI_VERSION}" --depth 1 https://github.com/cilium/cilium.git /go/src/github.com/cilium/cilium
+ENV CILIUM_VERSION master
+RUN git clone --branch "${CILIUM_VERSION}" --depth 1 https://github.com/cilium/cilium.git /go/src/github.com/cilium/cilium
 WORKDIR /go/src/github.com/cilium/cilium/plugins/cilium-cni
+RUN sed -i -e "s/-ldflags '/-ldflags '-s -w /g" ../../Makefile.defs
 RUN make
 
 FROM weaveworks/weave AS weavebuilder
@@ -37,6 +48,8 @@ FROM alpine:latest
 RUN	apk add --no-cache \
 	bash
 COPY --from=cnibuilder /go/src/github.com/containernetworking/plugins/bin/ /cni/bin/
+COPY --from=azurebuilder /usr/bin/azure-vnet /cni/bin/
+COPY --from=azurebuilder /usr/bin/azure-vnet-ipam /cni/bin/
 COPY --from=calicobuilder /usr/bin/calico /cni/bin/
 COPY --from=calicobuilder /usr/bin/calico-ipam /cni/bin/
 COPY --from=ciliumbuilder /go/src/github.com/cilium/cilium/plugins/cilium-cni/cilium-cni /cni/bin/
