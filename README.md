@@ -42,6 +42,8 @@ $ make benchmark
 goos: linux
 goarch: amd64
 pkg: github.com/jessfraz/cni-benchmarks
+BenchmarkAzure/setup_network_in_netns-8                  5         293583711 ns/op
+BenchmarkAzure/delete_network_from_netns-8              10         167036372 ns/op
 BenchmarkBridge/setup_network_in_netns-8                 5         231135669 ns/op
 BenchmarkBridge/delete_network_from_netns-8             10         169736314 ns/op
 BenchmarkCalico/setup_network_in_netns-8                10         163298127 ns/op
