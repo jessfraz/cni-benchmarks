@@ -8,6 +8,15 @@ import (
 	"github.com/vishvananda/netns"
 )
 
+func BenchmarkAzure(b *testing.B) {
+	b.Run("setup network in netns", func(b *testing.B) {
+		runBenchmarkSetupNetNS(b, "azure")
+	})
+	b.Run("delete network from netns", func(b *testing.B) {
+		runBenchmarkDeleteNetwork(b, "azure")
+	})
+}
+
 func BenchmarkBridge(b *testing.B) {
 	b.Run("setup network in netns", func(b *testing.B) {
 		runBenchmarkSetupNetNS(b, "bridge")
