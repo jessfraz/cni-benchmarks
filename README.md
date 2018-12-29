@@ -2,6 +2,12 @@
 
 [![Travis CI](https://travis-ci.org/jessfraz/cni-benchmarks.svg?branch=master)](https://travis-ci.org/jessfraz/cni-benchmarks)
 
+**Table of Contents**
+
+<!-- toc -->
+
+<!-- tocstop -->
+
 ## What this does...
 
 The `main.go` resulting binary loads all the cni plugin configurations from
