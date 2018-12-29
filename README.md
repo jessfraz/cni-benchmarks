@@ -6,6 +6,13 @@
 
 <!-- toc -->
 
+- [What this does...](#what-this-does)
+- [Running](#running)
+  * [Setup](#setup)
+  * [Running the benchmarks](#running-the-benchmarks)
+  * [Running the main program](#running-the-main-program)
+- [Using the Makefile to update the CNI binaries, etc](#using-the-makefile-to-update-the-cni-binaries-etc)
+
 <!-- tocstop -->
 
 ## What this does...
